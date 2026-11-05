@@ -1,0 +1,52 @@
+content_sources:
+  documentation:
+    path: content/documentation
+    source_id: documentation
+    category_id: documentation
+    enabled: true
+    description: Documentation and guides
+    allowed_content_types:
+    - guide
+    - reference
+    - tutorial
+    - docs
+    - feature
+    branding:
+      name: Documentation
+      description: Guides and reference documentation
+      image: /files/images/logo.png
+      keywords: docs, documentation, guides
+    indexing:
+      clear_before: false
+      recursive: true
+    sitemap:
+      enabled: true
+      url_pattern: /documentation/{slug}
+      priority: 0.7
+      changefreq: weekly
+      fetch_from: database
+      parent_route:
+        enabled: false
+        url: /documentation
+        priority: 0.9
+        changefreq: daily
+categories:
+  documentation:
+    name: Documentation
+    slug: documentation
+  pages:
+    name: Pages
+    slug: pages
+metadata:
+  default_author: Astound Digital
+  language: en
+  structured_data:
+    organization:
+      name: Astound Digital
+      url: https://astounddigital.com
+      logo: https://astounddigital.com/files/images/logo.png
+      description: Global digital commerce and AI-powered experience consultancy
+    article:
+      type: BlogPosting
+      language: en-US
+      article_section: Technology

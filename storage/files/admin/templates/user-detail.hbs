@@ -1,0 +1,314 @@
+{{#> layout title=title page=page}}
+    {{#*inline "head_extra"}}{{/inline}}
+    {{#*inline "content"}}
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <a href="/admin/access/users">Users</a>
+        <span class="breadcrumbs__sep" aria-hidden="true">›</span>
+        <span aria-current="page">User detail</span>
+    </nav>
+    {{> components/page-header title=title}}
+    {{#if not_found}}
+    {{> components/empty-state message="User not found."}}
+    {{else if user}}
+
+    <div class="dashboard-grid stats-grid-3col mb-6">
+        {{> components/stat-card label="User" value=(default user.display_name user.user_id) subtitle=user.user_id}}
+        {{> components/stat-card label="Total Events" value=(default user.total_events 0)}}
+        {{#if user.last_active}}
+        {{> components/stat-card label="Last Active" value=(relativeTime user.last_active)}}
+        {{else}}
+        {{> components/stat-card label="Last Active" value="Never"}}
+        {{/if}}
+    </div>
+
+    <div class="card mb-6">
+        <div class="card-header">
+            <h3>Profile</h3>
+            <span class="text-muted">Edit display name, email, roles, department, and status.</span>
+        </div>
+        <form id="user-edit-form" class="user-edit-form" data-user-id="{{user.user_id}}" novalidate>
+            <div class="form-grid">
+                <label class="form-field">
+                    <span class="form-label">User ID</span>
+                    <input type="text" value="{{user.user_id}}" disabled>
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Display Name</span>
+                    <input type="text" name="display_name" value="{{default user.display_name ""}}">
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Email</span>
+                    <input type="email" name="email" value="{{default user.email ""}}">
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Department</span>
+                    <select name="department">
+                        {{#each departments}}
+                        <option value="{{this}}"{{#if (eq this ../user_department)}} selected{{/if}}>{{this}}</option>
+                        {{/each}}
+                    </select>
+                </label>
+                <div class="form-field" role="group" aria-labelledby="user-roles-label">
+                    <span class="form-label" id="user-roles-label">Roles</span>
+                    {{!-- Checkboxes are built client-side from /users/roles plus
+                          the roles this user already holds, so a free-typed
+                          role can no longer be saved and a held role can never
+                          be dropped by a failed lookup. --}}
+                    <div class="checkbox-group" id="user-roles-group"
+                         data-roles="{{#each user.roles}}{{this}},{{/each}}"></div>
+                </div>
+                <label class="form-field form-field--inline">
+                    <input type="checkbox" name="is_active"{{#if user.is_active}} checked{{/if}}>
+                    <span class="form-label">Active</span>
+                </label>
+                <div class="form-field form-field--readonly">
+                    <span class="form-label">Member Since</span>
+                    <div>{{formatDate user.created_at}}</div>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Save changes</button>
+                <button type="reset" class="btn btn-outline">Reset</button>
+                <span class="form-status" id="user-edit-status" aria-live="polite"></span>
+            </div>
+        </form>
+    </div>
+
+    {{#if current_user.is_platform_admin}}
+    <div class="card mb-6">
+        <div class="card-header">
+            <h3>Organization</h3>
+            <span class="text-muted">Move this user between organizations or change their org role. Moving mints a seat in the target organization.</span>
+        </div>
+        <div id="org-membership" class="form-grid" data-user-id="{{user.user_id}}" data-org-slug="{{user_org_slug}}">
+            <label class="form-field">
+                <span class="form-label">Organization</span>
+                <select id="org-membership-org"></select>
+            </label>
+            <label class="form-field">
+                <span class="form-label">Org role</span>
+                <select id="org-membership-role">
+                    <option value="member">member</option>
+                    <option value="admin">admin</option>
+                    <option value="owner">owner</option>
+                </select>
+            </label>
+            <div class="form-actions">
+                <button type="button" class="btn btn-primary" id="org-membership-save">Move / set role</button>
+                <span class="form-status" id="org-membership-status" aria-live="polite"></span>
+            </div>
+        </div>
+    </div>
+    {{/if}}
+
+    {{#if runtime}}
+    <div class="card mb-6">
+        <h3>Runtime</h3>
+        <div class="dashboard-grid stats-grid-4col">
+            {{> components/stat-card label="AI requests" value=(formatNumber runtime.requests)}}
+            {{> components/stat-card label="Tokens in" value=(formatNumber runtime.tokens_in)}}
+            {{> components/stat-card label="Tokens out" value=(formatNumber runtime.tokens_out)}}
+            {{#if runtime.last_request_at}}
+            {{> components/stat-card label="Last request" value=(relativeTime runtime.last_request_at)}}
+            {{else}}
+            {{> components/stat-card label="Last request" value="Never"}}
+            {{/if}}
+        </div>
+    </div>
+    {{/if}}
+
+    {{#if user.activity_summary}}
+    <div class="card mb-6">
+        <h3>Activity Breakdown</h3>
+        <div class="dashboard-grid stats-grid-3col">
+            {{#each user.activity_summary}}
+            {{> components/stat-card label=category value=(default count 0)}}
+            {{/each}}
+        </div>
+    </div>
+    {{/if}}
+
+    <div class="card mb-6">
+        <h3>Custom Skills</h3>
+        {{#if user.skills}}
+        <div class="table-container"><div class="table-scroll">
+            <table class="data-table">
+                <thead><tr><th>Name</th><th class="col-multiline">Description</th><th class="col-status">Status</th><th>Tags</th><th class="col-date">Updated</th></tr></thead>
+                <tbody>
+                {{#each user.skills}}
+                <tr>
+                    <td>{{name}}</td>
+                    <td class="col-multiline">{{default description "-"}}</td>
+                    <td class="col-status">{{#if enabled}}<span class="badge badge-green">Enabled</span>{{else}}<span class="badge badge-gray">Disabled</span>{{/if}}</td>
+                    <td>{{#if tags}}{{#each tags}}<span class="badge badge-blue">{{this}}</span> {{/each}}{{else}}-{{/if}}</td>
+                    <td class="col-date">{{relativeTime updated_at}}</td>
+                </tr>
+                {{/each}}
+                </tbody>
+            </table>
+        </div></div>
+        {{else}}
+        {{> components/empty-state message="No custom skills."}}
+        {{/if}}
+    </div>
+
+    <div class="card mb-6">
+        <h3>Department &amp; assignments</h3>
+        <div class="dashboard-grid stats-grid-4col">
+            {{#if user_department}}
+            {{> components/stat-card label="Department" value=user_department}}
+            {{else}}
+            {{> components/stat-card label="Department" value="Default"}}
+            {{/if}}
+            {{> components/stat-card label="Effective skills" value=(default user_assignments.skills_count 0)}}
+            {{> components/stat-card label="Marketplaces" value=(default user_assignments.marketplaces_count 0)}}
+            {{> components/stat-card label="Active tokens" value=(default user_tokens_count 0)}}
+        </div>
+        {{#if user_assignments.marketplaces}}
+        <p>
+        {{#each user_assignments.marketplaces}}
+            <span class="badge {{#if (eq source "override")}}badge-blue{{else}}badge-orange{{/if}}" title="{{#if (eq source "override")}}DB override{{else}}YAML default{{/if}}">{{name}}</span>
+        {{/each}}
+        </p>
+        {{/if}}
+        <p class="text-muted runtime-meta">
+            Granted by the plan this user's enterprise is on, projected into <code class="code-inline">access_control_rules</code>. Change the plan in <code class="code-inline">services/access-control/plans.yaml</code>; see the
+            <a href="/admin/enterprises">enterprise list</a> for what each plan carries.
+        </p>
+    </div>
+
+    {{#if has_effective_permissions}}
+    <div class="card mb-6">
+        <h3>Effective permissions — Gateway routes</h3>
+        <p class="text-muted">Computed live by the authz resolver against this user's roles and department.</p>
+        {{#if effective_permissions.gateway_routes}}
+        <table class="data-table">
+            <thead><tr><th>Route</th><th class="col-status">Decision</th><th>Decided by</th></tr></thead>
+            <tbody>
+            {{#each effective_permissions.gateway_routes}}
+              <tr>
+                <td><code class="code-inline">{{this.entity_id}}</code></td>
+                <td class="col-status">
+                  {{#if (eq this.decision "allow")}}
+                    <span class="badge badge-green">ALLOW</span>
+                  {{else}}
+                    <span class="badge badge-red">DENY</span>
+                  {{/if}}
+                </td>
+                <td><a href="{{this.matrix_url}}">{{this.reason}}</a></td>
+              </tr>
+            {{/each}}
+            </tbody>
+        </table>
+        {{else}}
+        {{> components/empty-state message="No gateway routes configured."}}
+        {{/if}}
+    </div>
+
+    <div class="card mb-6">
+        <h3>Effective permissions — MCP servers</h3>
+        {{#if effective_permissions.mcp_servers}}
+        <table class="data-table">
+            <thead><tr><th>Server</th><th class="col-status">Decision</th><th>Decided by</th></tr></thead>
+            <tbody>
+            {{#each effective_permissions.mcp_servers}}
+              <tr>
+                <td><code class="code-inline">{{this.entity_id}}</code></td>
+                <td class="col-status">
+                  {{#if (eq this.decision "allow")}}
+                    <span class="badge badge-green">ALLOW</span>
+                  {{else}}
+                    <span class="badge badge-red">DENY</span>
+                  {{/if}}
+                </td>
+                <td><a href="{{this.matrix_url}}">{{this.reason}}</a></td>
+              </tr>
+            {{/each}}
+            </tbody>
+        </table>
+        {{else}}
+        {{> components/empty-state message="No MCP servers configured."}}
+        {{/if}}
+    </div>
+    {{/if}}
+
+    {{!-- Devices and their per-device tokens. This card read `user_tokens`,
+          which nothing ever produced, so it always showed the empty state while
+          `user_devices` was loaded and dropped on the floor. --}}
+    <div class="card mb-6">
+        <h3>Devices and access tokens</h3>
+        {{#if user_devices}}
+        <table class="data-table" id="user-devices-table">
+            <thead><tr><th>Name</th><th>Prefix</th><th>Platform</th><th class="col-date">Last seen</th><th class="col-status">Status</th><th class="col-actions"></th></tr></thead>
+            <tbody>
+            {{#each user_devices}}
+            <tr data-device-id="{{id}}">
+                <td><code class="code-inline">{{name}}</code></td>
+                <td><code class="code-inline">{{key_prefix}}</code></td>
+                <td>{{#if platform}}{{platform}}{{#if app_version}} · {{app_version}}{{/if}}{{else}}<span class="text-tertiary">—</span>{{/if}}</td>
+                <td class="col-date">{{#if last_seen_at}}<span title="{{formatDate last_seen_at}}">{{relativeTime last_seen_at}}</span>{{else}}<span class="text-tertiary">Never</span>{{/if}}</td>
+                <td class="col-status">{{#if revoked}}<span class="badge badge-gray">Revoked</span>{{else}}<span class="badge badge-green">Active</span>{{/if}}</td>
+                <td class="col-actions">
+                    {{#unless revoked}}
+                    <button type="button" class="btn btn-sm btn-danger" data-revoke-device="{{id}}">Revoke</button>
+                    {{/unless}}
+                </td>
+            </tr>
+            {{/each}}
+            </tbody>
+        </table>
+        {{else}}
+        {{> components/empty-state message="No devices linked."}}
+        {{/if}}
+        <div class="toolbar toolbar--compact">
+            <a class="btn btn-sm btn-primary" href="/bridge-auth/device-link?prefill_user={{user.user_id}}">Link desktop app</a>
+        </div>
+    </div>
+
+    {{!-- Sign-in sessions. Revoking took a shell before this card existed. --}}
+    <div class="card mb-6">
+        <h3>Sign-in sessions</h3>
+        <p class="text-tertiary">
+            Revoking ends the session on its next request — roles and session
+            validity are re-read from the database per request, never trusted
+            from the token.
+        </p>
+        <table class="data-table" id="user-sessions-table" data-user-id="{{user.user_id}}">
+            <thead><tr><th>Session</th><th>Source</th><th>IP</th><th class="numeric col-numeric">Requests</th><th class="col-date">Last activity</th><th class="col-status">Status</th><th class="col-actions"></th></tr></thead>
+            <tbody id="user-sessions-body">
+            <tr data-placeholder><td colspan="7" class="text-tertiary">Loading sessions…</td></tr>
+            </tbody>
+        </table>
+        <div class="toolbar toolbar--compact">
+            <button type="button" class="btn btn-sm btn-danger" id="revoke-all-sessions">Sign out everywhere</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Recent Activity</h3>
+        {{#if user.recent_activity}}
+        <div class="live-feed">
+            {{#each user.recent_activity}}
+            <div class="feed-item">
+                <div class="feed-icon {{#if (eq category "login")}}feed-blue{{else if (eq category "skill_usage")}}feed-orange{{else if (eq category "marketplace_edit")}}feed-green{{else if (eq category "marketplace_connect")}}feed-purple{{else if (eq category "claude_code")}}feed-cyan{{else if (eq category "session")}}feed-cyan{{else if (eq category "prompt")}}feed-cyan{{else}}feed-blue{{/if}}"></div>
+                <div class="feed-content">
+                    <span class="feed-text">{{description}}</span>
+                    <span class="feed-time" title="{{formatDate created_at}}">{{relativeTime created_at}}</span>
+                </div>
+            </div>
+            {{/each}}
+        </div>
+        {{else}}
+        {{> components/empty-state message="No activity recorded."}}
+        {{/if}}
+    </div>
+
+    {{else}}
+    {{> components/empty-state message="No user ID provided."}}
+    {{/if}}
+    {{/inline}}
+    {{#*inline "scripts"}}
+    <script data-cfasync="false" type="module" src="/js/pages/admin-user-detail.js"></script>
+    <script data-cfasync="false" type="module" src="/js/pages/admin-user-sessions.js"></script>
+    {{/inline}}
+{{/layout}}

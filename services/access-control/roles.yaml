@@ -1,0 +1,223 @@
+# Role-scoped access control rules.
+#
+# This file is the BOOTSTRAP source of truth. On startup the publish pipeline
+# reads it and upserts each rule into `access_control_rules` (rule_type=role).
+# Dashboard edits write to the database only — there is NO write-back to this
+# file. To make a rule permanent across deployments, edit this file in the
+# source repo and redeploy.
+#
+# Schema:
+#   rules:
+#     - entity_type:    gateway_route | mcp_server | plugin | agent | marketplace | skill | hook
+#                       | slack_workspace  (written by services/slack/*.yaml, not here)
+#       entity_id:      string id of the entity        (exactly one of entity_id / entity_match)
+#       entity_match:   glob pattern over catalog ids  (exactly one of entity_id / entity_match)
+#       access:         allow | deny  (default: allow)
+#       default_included: bool        (default: false)
+#       roles:          list of role names to grant (or deny) access
+#
+# Example:
+#
+# rules:
+#   - entity_type: gateway_route
+#     entity_match: "*"
+#     access: allow
+#     roles: [admin, developer]
+#   - entity_type: mcp_server
+#     entity_id: systemprompt
+#     access: allow
+#     roles: [admin]
+
+rules:
+  # enterprise-demo marketplace. The bridge manifest filter resolves this rule
+  # and cascades it onto every member skill/agent/mcp that lacks an own rule
+  # (see marketplace_filter.rs). Mirrors marketplace.access in
+  # services/marketplaces/enterprise-demo/config.yaml.
+  - entity_type: marketplace
+    entity_id: enterprise-demo
+    access: allow
+    default_included: true
+    roles: [user]
+
+  # Skills, plugins, agents, and mcp servers shipped with enterprise-demo need NO
+  # per-entity rule: they inherit the marketplace grant above via the parent
+  # cascade in marketplace_filter.rs (the bridge listing) and authz.rs (runtime
+  # authz). Add an entity-level rule here only to DENY a specific member — an
+  # entity-level deny overrides the inherited marketplace allow (deny-overrides).
+
+  # This instance defines exactly one A2A agent, `admin_console` (the Slack
+  # slash command dispatches to it). Its rule sits with the rest of the admin
+  # control plane below.
+  #
+  # `slack_workspace` rules are NOT written here. They are projected from
+  # `authz.allowed_roles` in services/slack/*.yaml at startup — see
+  # extensions/web/admin/src/repositories/config/acl_yaml_loader.rs — so the
+  # Slack app file stays the single place that says who may drive a workspace.
+
+  # Salesforce Hosted MCP server, plugins, and skills are NOT granted here.
+  # They are confined to Salesforce-linked users via the derived `salesforce`
+  # subject dimension — see access-control/salesforce.yaml. A role grant on any
+  # of those entities would reopen them to passkey-only accounts.
+
+  # Admin control plane (astound-admin plugin). These entities are members of
+  # the enterprise-demo marketplace, so without a rule of their own they would
+  # inherit its [user] grant. Declaring any rule on an entity opts it out of the
+  # marketplace cascade — the resolver falls back to a parent only when the
+  # entity declares no rules at all — and that is what makes `roles: [admin]`
+  # below restrictive rather than merely additive. Each entry therefore closes
+  # its entity to every role but admin, in the signed manifest and at runtime
+  # authz alike. The systemprompt MCP server is additionally gated by
+  # oauth.scopes in services/mcp/systemprompt.yaml.
+  - entity_type: mcp_server
+    entity_id: systemprompt
+    access: allow
+    default_included: false
+    roles: [admin]
+  # Knowledge-bank MCP (REQ-047): admin-only while the backend is a stub;
+  # widen deliberately once the Bedrock retriever ships.
+  - entity_type: mcp_server
+    entity_id: knowledge-bank
+    access: allow
+    default_included: false
+    roles: [admin]
+  - entity_type: agent
+    entity_id: admin_console
+    access: allow
+    default_included: false
+    roles: [admin]
+  - entity_type: plugin
+    entity_id: astound-admin
+    access: allow
+    default_included: false
+    roles: [admin]
+  - entity_type: skill
+    entity_id: admin_workspace_setup
+    access: allow
+    default_included: false
+    roles: [admin]
+  - entity_type: skill
+    entity_id: admin_user_report
+    access: allow
+    default_included: false
+    roles: [admin]
+  - entity_type: skill
+    entity_id: admin_activity_report
+    access: allow
+    default_included: false
+    roles: [admin]
+  - entity_type: skill
+    entity_id: analytics_dashboards
+    access: allow
+    default_included: false
+    roles: [admin]
+  - entity_type: skill
+    entity_id: inspect_ai_requests
+    access: allow
+    default_included: false
+    roles: [admin]
+  - entity_type: skill
+    entity_id: inspect_conversation
+    access: allow
+    default_included: false
+    roles: [admin]
+  - entity_type: skill
+    entity_id: manage_permissions
+    access: allow
+    default_included: false
+    roles: [admin]
+  - entity_type: skill
+    entity_id: demonstrate_governance
+    access: allow
+    default_included: false
+    roles: [admin]
+  - entity_type: skill
+    entity_id: inspect_agents
+    access: allow
+    default_included: false
+    roles: [admin]
+  - entity_type: skill
+    entity_id: manage_services
+    access: allow
+    default_included: false
+    roles: [admin]
+  - entity_type: skill
+    entity_id: inspect_mcp_and_skills
+    access: allow
+    default_included: false
+    roles: [admin]
+  - entity_type: skill
+    entity_id: systemprompt_cli
+    access: allow
+    default_included: false
+    roles: [admin]
+  - entity_type: skill
+    entity_id: manage_users
+    access: allow
+    default_included: false
+    roles: [admin]
+  - entity_type: skill
+    entity_id: block_users
+    access: allow
+    default_included: false
+    roles: [admin]
+  - entity_type: skill
+    entity_id: manage_roles
+    access: allow
+    default_included: false
+    roles: [admin]
+  - entity_type: skill
+    entity_id: manage_sessions
+    access: allow
+    default_included: false
+    roles: [admin]
+
+  # Slack inbound surface. Wildcard grant over every Slack channel for the
+  # `user` role — the role federated Slack users are minted with (see
+  # services/slack/dev.yaml authz.allowed_roles). Channels inherit their
+  # workspace grant via authz parent inheritance. Tighten entity_match to
+  # specific channel ids (e.g. "C0ABC*") for production. To demonstrate a
+  # denial, add a channel-specific `access: deny` rule below — an entity-level
+  # deny overrides this inherited allow (deny-overrides).
+  - entity_type: slack_channel
+    entity_match: "*"
+    access: allow
+    default_included: true
+    roles: [user]
+
+  # gateway routes shipped with enterprise-demo — wildcard grant over every
+  # route in the catalog. Per-route enumeration was retired alongside the
+  # gateway_model EntityKind in core 0.11.x.
+  - entity_type: gateway_route
+    entity_match: "*"
+    access: allow
+    default_included: true
+    roles: [user, admin]
+
+  # Per-model Anthropic reroutes. Each claude-* model fans out to a different
+  # upstream (gemini, openai, minimax, native anthropic). The wildcard above
+  # only GRANTS routes the publish pipeline already materialised from the live
+  # profile; it cannot create the entity row. An explicit entity_id is a
+  # RuleTarget::Id, so the ACL loader self-materialises the row (upsert_entity)
+  # at every boot, independent of profile-route registration or pipeline
+  # timing, so each reroute survives a clean install. Ids match the route ids
+  # in the profile gateway.routes.
+  - entity_type: gateway_route
+    entity_id: claude-opus-4-8-gemini
+    access: allow
+    default_included: true
+    roles: [user]
+  - entity_type: gateway_route
+    entity_id: claude-sonnet-4-6-openai
+    access: allow
+    default_included: true
+    roles: [user]
+  - entity_type: gateway_route
+    entity_id: claude-3-7-sonnet-minimax
+    access: allow
+    default_included: true
+    roles: [user]
+  - entity_type: gateway_route
+    entity_id: claude-haiku-4-5-anthropic
+    access: allow
+    default_included: true
+    roles: [user]

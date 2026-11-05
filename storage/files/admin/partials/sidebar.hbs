@@ -1,0 +1,124 @@
+<aside class="admin-sidebar" id="admin-sidebar">
+    <button class="sidebar-close-btn" type="button" aria-label="Close menu">&times;</button>
+    <a href="/admin/profile" class="admin-sidebar-brand" aria-label="{{default branding.domain "astounddigital.com"}} - Go to admin">
+        <img src="{{default branding.logo_light "/files/images/logo.svg"}}" alt="{{default branding.domain "astounddigital.com"}}" class="admin-logo admin-logo--light" />
+        <img src="{{default branding.logo_dark "/files/images/logo-white.svg"}}" alt="{{default branding.domain "astounddigital.com"}}" class="admin-logo admin-logo--dark" />
+    </a>
+    <nav aria-label="Admin navigation">
+
+        {{!-- ENTERPRISES — the customers, and what they are made of --}}
+        {{#if current_user.is_platform_admin}}
+        <h2 class="nav-label">Enterprises</h2>
+        <a href="/admin/enterprises"{{#if (eq page "enterprises")}} class="active" aria-current="page"{{else}}{{#if (eq page "enterprise-detail")}} class="active" aria-current="page"{{else}}{{#if (eq page "users")}} class="active" aria-current="page"{{else}}{{#if (eq page "user-detail")}} class="active" aria-current="page"{{else}}{{#if (eq page "management-departments")}} class="active" aria-current="page"{{else}}{{#if (eq page "management-department-detail")}} class="active" aria-current="page"{{/if}}{{/if}}{{/if}}{{/if}}{{/if}}{{/if}}>
+            <svg class="icon" aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 14V3h6v11M8 14V7h6v7M2 14h12M4 5.5h2M4 8h2M4 10.5h2M10 9.5h2M10 12h2" stroke-linecap="round"/></svg>
+            Enterprises
+        </a>
+
+        {{!-- CATALOG — installable units from services/*.yaml --}}
+        <h2 class="nav-label">Catalog</h2>
+        <a href="/admin/catalog/plugins"{{#if (eq page "plugins")}} class="active" aria-current="page"{{else}}{{#if (eq page "plugin-detail")}} class="active" aria-current="page"{{else}}{{#if (eq page "catalog")}} class="active" aria-current="page"{{/if}}{{/if}}{{/if}}>
+            <svg class="icon" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor"><path d="M3 3h4v4H3zM9 3h4v4H9zM3 9h4v4H3zM9 9h4v4H9z"/></svg>
+            Plugins
+        </a>
+        <a href="/admin/catalog/skills"{{#if (eq page "skills")}} class="active" aria-current="page"{{else}}{{#if (eq page "skill-detail")}} class="active" aria-current="page"{{/if}}{{/if}}>
+            <svg class="icon" aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.5l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.3 4.2 13.3l.7-4.3-3.1-3 4.3-.6z" stroke-linejoin="round"/></svg>
+            Skills
+        </a>
+        <a href="/admin/catalog/mcp"{{#if (eq page "mcp")}} class="active" aria-current="page"{{else}}{{#if (eq page "mcp-detail")}} class="active" aria-current="page"{{/if}}{{/if}}>
+            <svg class="icon" aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="4" rx="1"/><rect x="2" y="9" width="12" height="4" rx="1"/><path d="M5 5h.01M5 11h.01" stroke-linecap="round"/></svg>
+            MCP servers
+        </a>
+
+        {{!-- OBSERVABILITY — read-only state inspection --}}
+        <h2 class="nav-label">Observability</h2>
+        <a href="/admin/entities/requests"{{#if (eq page "requests")}} class="active" aria-current="page"{{else}}{{#if (eq page "request-detail")}} class="active" aria-current="page"{{/if}}{{/if}}>
+            <svg class="icon" aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8a6 6 0 0112 0M14 8a6 6 0 01-12 0M5 8l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Requests
+        </a>
+        <a href="/admin/entities/sessions"{{#if (eq page "sessions")}} class="active" aria-current="page"{{else}}{{#if (eq page "session-detail")}} class="active" aria-current="page"{{/if}}{{/if}}>
+            <svg class="icon" aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5V8l2.5 1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Sessions
+        </a>
+        <a href="/admin/entities/traces"{{#if (eq page "traces")}} class="active" aria-current="page"{{else}}{{#if (eq page "trace-detail")}} class="active" aria-current="page"{{/if}}{{/if}}>
+            <svg class="icon" aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h6M2 8h10M2 12h4" stroke-linecap="round"/><circle cx="13" cy="4" r="1.5" fill="currentColor"/><circle cx="13" cy="12" r="1.5" fill="currentColor"/></svg>
+            Traces
+        </a>
+        <a href="/admin/entities/contexts"{{#if (eq page "contexts")}} class="active" aria-current="page"{{else}}{{#if (eq page "context-detail")}} class="active" aria-current="page"{{/if}}{{/if}}>
+            <svg class="icon" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor"><path d="M2 3h12v1H2zm0 3h10v1H2zm0 3h12v1H2zm0 3h8v1H2z"/></svg>
+            Contexts
+        </a>
+        {{/if}}
+
+        {{!-- ANALYTICS — the site dashboard. Admin-scoped, not
+             platform-scoped: an organization's own administrator sees their
+             own org's numbers, a platform admin sees everyone's. --}}
+        {{#if current_user.is_admin}}
+        <h2 class="nav-label">Analytics</h2>
+        <a href="/admin/analytics"{{#if (eq page "analytics-dashboard")}} class="active" aria-current="page"{{/if}}>
+            <svg class="icon" aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 13h12M3.5 13V8.5M7 13V4.5M10.5 13V6.5M14 13V3" stroke-linecap="round"/></svg>
+            Dashboard
+        </a>
+        {{/if}}
+
+        {{!-- PEOPLE — user administration. Admin-scoped for the same reason
+             analytics is: `admin` is what a customer's own administrator
+             holds, and managing their own members is precisely their job.
+             Platform admins reach the same pages through Enterprises, which is
+             why these links were the only ones with no home in the nav at all
+             for an org admin — leaving them a breadcrumb on a page they had no
+             way to arrive at. --}}
+        {{#if current_user.is_admin}}
+        <h2 class="nav-label">People</h2>
+        <a href="/admin/access/users"{{#if (eq page "users")}} class="active" aria-current="page"{{else}}{{#if (eq page "user-detail")}} class="active" aria-current="page"{{/if}}{{/if}}>
+            <svg class="icon" aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="2.5"/><path d="M1.5 13.5c0-2.5 2-4.5 4.5-4.5s4.5 2 4.5 4.5"/><path d="M11 3.2a2.5 2.5 0 010 4.6M12.5 13.5c0-1.6-.5-3-1.4-4" stroke-linecap="round"/></svg>
+            Users
+        </a>
+        <a href="/admin/access/departments"{{#if (eq page "management-departments")}} class="active" aria-current="page"{{else}}{{#if (eq page "management-department-detail")}} class="active" aria-current="page"{{/if}}{{/if}}>
+            <svg class="icon" aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
+            Departments
+        </a>
+        {{/if}}
+
+        {{!-- REPORTS — the month-end pack. The P&L is ours; the usage report is
+             the customer's copy, so a customer's own administrator sees it too
+             and a platform admin sees it for every organization. --}}
+        {{#if current_user.is_admin}}
+        <h2 class="nav-label">Reports</h2>
+        {{#if current_user.is_platform_admin}}
+        <a href="/admin/reports/internal"{{#if (eq page "report-internal")}} class="active" aria-current="page"{{/if}}>
+            <svg class="icon" aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 13V9M6 13V4M10 13V7M14 13V2" stroke-linecap="round"/></svg>
+            Month-end P&amp;L
+        </a>
+        {{/if}}
+        <a href="/admin/reports/customer"{{#if (eq page "report-customer")}} class="active" aria-current="page"{{/if}}>
+            <svg class="icon" aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 1.5h6L13 5v9.5H3.5z" stroke-linejoin="round"/><path d="M9.5 1.5V5H13M5.5 8h5M5.5 10.5h5" stroke-linecap="round"/></svg>
+            Customer usage
+        </a>
+        {{/if}}
+
+        {{!-- ACCOUNT — the signed-in person, not the business --}}
+        <h2 class="nav-label nav-label--account">Account</h2>
+        <a href="/admin/profile"{{#if (eq page "profile")}} class="active" aria-current="page"{{/if}}>
+            <svg class="icon" aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
+            Profile
+        </a>
+        <a href="/admin/history"{{#if (eq page "history")}} class="active" aria-current="page"{{/if}}>
+            <svg class="icon" aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 3.5h11v8h-6l-2.5 2v-2h-2.5z" stroke-linejoin="round"/><path d="M5 6.5h6M5 9h4" stroke-linecap="round"/></svg>
+            My conversations
+        </a>
+        <a href="/admin/settings"{{#if (eq page "settings")}} class="active" aria-current="page"{{/if}}>
+            <svg class="icon" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor"><path d="M8 4.754a3.246 3.246 0 100 6.492 3.246 3.246 0 000-6.492zM5.754 8a2.246 2.246 0 114.492 0 2.246 2.246 0 01-4.492 0z"/></svg>
+            Settings
+        </a>
+        <a href="/documentation" target="_blank" rel="noopener noreferrer">
+            <svg class="icon" aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M6 6a2 2 0 113.5 1.8c-.5.3-.5.5-.5 1.2M8 12v.5" stroke-linecap="round"/></svg>
+            Help &amp; docs
+            <span class="nav-external" aria-hidden="true">↗</span>
+        </a>
+        <a href="https://discord.gg/wkAbSuPWpr" target="_blank" rel="noopener noreferrer">
+            <svg class="icon" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor"><path d="M13.5 3.4A13 13 0 0010.3 2.5a.05.05 0 00-.05.02c-.14.25-.3.57-.4.83a12 12 0 00-3.7 0 8 8 0 00-.42-.83.05.05 0 00-.05-.02A13 13 0 002.5 3.4a.04.04 0 00-.02.02C.9 6.1.5 8.7.7 11.3a.05.05 0 00.02.04 13.2 13.2 0 004 2 .05.05 0 00.06-.02c.3-.43.58-.88.82-1.35a.05.05 0 00-.03-.07 8.7 8.7 0 01-1.25-.6.05.05 0 01-.004-.08c.08-.06.17-.13.25-.19a.05.05 0 01.05-.01c2.6 1.2 5.4 1.2 8 0a.05.05 0 01.05 0c.08.07.17.13.25.2a.05.05 0 01-.003.08c-.4.23-.82.43-1.25.6a.05.05 0 00-.03.07c.24.47.52.92.82 1.35a.05.05 0 00.05.02 13.2 13.2 0 004-2 .05.05 0 00.02-.03c.24-2.56-.4-5.14-1.78-7.87a.04.04 0 00-.02-.02zM5.7 9.7c-.7 0-1.26-.63-1.26-1.4s.55-1.4 1.26-1.4c.7 0 1.27.64 1.26 1.4 0 .78-.56 1.4-1.26 1.4zm4.6 0c-.7 0-1.26-.63-1.26-1.4s.55-1.4 1.26-1.4c.7 0 1.27.64 1.26 1.4 0 .78-.55 1.4-1.26 1.4z"/></svg>
+            Discord
+            <span class="nav-external" aria-hidden="true">↗</span>
+        </a>
+    </nav>
+</aside>

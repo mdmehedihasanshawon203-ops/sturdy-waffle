@@ -1,0 +1,105 @@
+{{#> layout title=title page=page}}
+    {{#*inline "head_extra"}}{{/inline}}
+    {{#*inline "content"}}
+    {{> components/page-header title=title}}
+
+    <div class="toolbar" role="toolbar" aria-label="Actions">
+        <div class="search-group">
+            <input type="text" class="search-input" placeholder="Search users..." id="user-search" aria-label="Search users...">
+        </div>
+        <button type="button" class="btn btn-primary" id="btn-add-user" data-action="create-user">+ Add User</button>
+        <button type="button" class="btn" id="btn-invite-user">+ Invite by Link</button>
+    </div>
+    {{> components/create-user-panel}}
+
+    <section aria-label="Pending invites" id="invites-section" hidden>
+        <h2 class="section-caption">Pending invites</h2>
+        <div id="invite-form" class="analytics-filters">
+            <input type="email" class="search-input" id="invite-email" placeholder="person@company.com" aria-label="Invite email">
+            <input type="text" class="search-input" id="invite-org" placeholder="Organization slug" aria-label="Organization slug" hidden>
+            <input type="text" class="search-input" id="invite-department" placeholder="Department (Default)" aria-label="Department">
+            <input type="search" class="search-input" id="invite-filter" placeholder="Filter invites" aria-label="Filter pending invites">
+            <button type="button" class="btn btn-primary" id="btn-create-invite">Create invite link</button>
+        </div>
+        <div id="invites-list"></div>
+    </section>
+
+    <section aria-label="Users list" data-page="users">
+    {{#if groups}}
+    {{#> components/data-table}}
+        <thead><tr>
+            <th>User</th>
+            <th>Roles</th>
+            <th title="Marketplaces granted by YAML default plus any DB overrides">Marketplaces</th>
+            <th class="col-status" title="Active access tokens, coloured by last-used">Tokens</th>
+            <th class="numeric col-numeric" title="Lifetime model tokens consumed via the gateway">Model tokens</th>
+            <th class="numeric col-numeric">Sessions</th>
+            <th class="col-status">Status</th>
+            <th class="col-date">Joined</th>
+            <th class="col-date">Last Active</th>
+            <th class="col-actions"></th>
+        </tr></thead>
+        {{#each groups}}
+        <tbody class="table-group" data-department="{{department}}">
+            <tr class="table-group-header">
+                <th colspan="10">
+                    <a href="/admin/access/departments" class="table-group-title">
+                        <span class="table-group-name">{{department}}</span>
+                        <span class="table-group-count">{{user_count}} user{{#unless (eq user_count 1)}}s{{/unless}}</span>
+                    </a>
+                    <span class="table-group-stats">
+                        {{#if total_tokens}}<span title="Lifetime tokens">{{formatNumber total_tokens}} tokens</span>{{/if}}
+                        {{#if total_sessions}}<span title="Total sessions">&middot; {{total_sessions}} sessions</span>{{/if}}
+                    </span>
+                </th>
+            </tr>
+            {{#each users}}
+            <tr data-user-name="{{toLowerCase (default display_name user_id)}}" data-user-email="{{toLowerCase (default email "")}}">
+                <td>
+                    <a href="/admin/user/?id={{user_id}}" class="user-cell">
+                        <span class="avatar avatar-sm">{{initials (default display_name user_id)}}</span>
+                        <span class="user-cell-text">
+                            <span class="user-cell-name">{{default display_name user_id}}</span>
+                            {{#if email}}<span class="user-cell-email">{{email}}</span>{{/if}}
+                        </span>
+                    </a>
+                </td>
+                <td>
+                    {{#if roles}}{{#each roles}}<span class="badge badge-gray">{{this}}</span> {{/each}}{{else}}<span class="text-tertiary">—</span>{{/if}}
+                </td>
+                <td>
+                    {{#if marketplaces}}{{#each marketplaces}}<span class="badge {{#if (eq source "override")}}badge-blue{{else}}badge-orange{{/if}}" title="{{#if (eq source "override")}}DB override{{else}}YAML default{{/if}}">{{name}}</span> {{/each}}{{else}}<span class="text-tertiary">None</span>{{/if}}
+                </td>
+                <td class="col-status">
+                    {{#if tokens_count}}
+                        <span class="token-pill token-pill--{{token_freshness}}" title="{{tokens_count}} token{{#unless (eq tokens_count 1)}}s{{/unless}} ({{token_freshness}})">
+                            <span class="agent-dot"></span>{{tokens_count}}
+                        </span>
+                    {{else}}
+                        <span class="text-tertiary">0</span>
+                    {{/if}}
+                </td>
+                <td class="numeric" title="{{lifetime_tokens}} tokens">{{#if lifetime_tokens}}{{formatNumber lifetime_tokens}}{{else}}<span class="text-tertiary">0</span>{{/if}}</td>
+                <td class="numeric">{{sessions}}</td>
+                <td class="col-status">{{#if is_active}}<span class="badge badge-success">Active</span>{{else}}<span class="badge badge-secondary">Inactive</span>{{/if}}</td>
+                <td class="col-date">{{#if created_at}}<span title="{{formatDate created_at}}">{{relativeTime created_at}}</span>{{else}}<span class="text-tertiary">—</span>{{/if}}</td>
+                <td class="col-date">{{#if last_active}}<span title="{{formatDate last_active}}">{{relativeTime last_active}}</span>{{else}}Never{{/if}}</td>
+                <td class="col-actions"><button class="btn-actions-trigger" data-user-id="{{user_id}}" aria-label="Actions for {{default display_name user_id}}" aria-haspopup="true" aria-expanded="false" type="button">&#8943;</button></td>
+            </tr>
+            {{/each}}
+        </tbody>
+        {{/each}}
+    {{/components/data-table}}
+    <div id="user-search-empty" hidden>
+        {{> components/empty-state message="No users match that search."}}
+    </div>
+    {{else}}
+    {{> components/empty-state message="No users found."}}
+    {{/if}}
+    </section>
+    {{/inline}}
+    {{#*inline "scripts"}}
+    <script data-cfasync="false" type="module" src="/js/pages/admin-users.js"></script>
+    <script data-cfasync="false" type="module" src="/js/pages/admin-invites-panel.js"></script>
+    {{/inline}}
+{{/layout}}

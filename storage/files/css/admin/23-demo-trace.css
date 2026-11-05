@@ -1,0 +1,7 @@
+@layer components {
+
+.trace-row {
+    cursor: pointer;
+}
+
+}

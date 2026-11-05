@@ -1,0 +1,36 @@
+//! HTTP handler for content search.
+
+use std::sync::Arc;
+
+use axum::Json;
+use axum::extract::{Query, State};
+use axum::response::{IntoResponse, Response};
+
+use crate::api::{BlogState, ErrorResponse, SearchQuery};
+use crate::services::SearchService;
+use systemprompt_web_shared::models::SearchRequest;
+
+pub async fn search_handler(
+    State(state): State<BlogState>,
+    Query(query): Query<SearchQuery>,
+) -> Response {
+    let service = SearchService::new(Arc::clone(&state.pool));
+
+    let request = SearchRequest {
+        query: query.q,
+        filters: None,
+        limit: query.limit,
+    };
+
+    match service.search(&request).await {
+        Ok(response) => Json(response).into_response(),
+        Err(e) => {
+            tracing::error!(error = %e, "Search failed");
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new("Internal server error")),
+            )
+                .into_response()
+        },
+    }
+}

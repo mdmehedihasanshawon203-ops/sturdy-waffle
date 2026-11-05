@@ -1,0 +1,534 @@
+/* Astound Digital setup / sign-in screen.
+ *
+ * Overrides core's centred-card layout with a full-window split panel: a
+ * branded left column and a constrained form column on the right. Shadowed over
+ * core via SYSTEMPROMPT_BRIDGE_WEB_OVERLAY, so this file must carry every
+ * selector core's setup.css defined — sp-setup-agents (step 2) still renders
+ * against __field / __status / __hint / __actions / __error. */
+
+.sp-setup {
+  flex: 1;
+  display: none;
+  min-height: 0;
+  padding: 0;
+}
+body.is-setup-mode .sp-topbar { display: none; }
+body.is-setup-mode .sp-footer { display: none; }
+body.is-setup-mode .sp-setup  { display: block; }
+
+/* Splash → app is a display swap, which cannot be transitioned. Fade whichever
+   side is arriving so the one legitimate handover reads as a transition rather
+   than a snap. */
+@keyframes sp-surface-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+body:not(.is-setup-mode) .sp-shell,
+body.is-setup-mode .sp-setup {
+  animation: sp-surface-in 180ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  body:not(.is-setup-mode) .sp-shell,
+  body.is-setup-mode .sp-setup {
+    animation: none;
+  }
+}
+
+.sp-setup__split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 44%);
+  min-height: 100%;
+}
+
+/* Left: brand panel ------------------------------------------------------- */
+
+.sp-setup__brand {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--sp-space-10);
+  padding: var(--sp-space-10) var(--sp-space-10) var(--sp-space-8);
+  background:
+    radial-gradient(120% 90% at 0% 0%, oklch(0.24 0.02 45) 0%, transparent 60%),
+    linear-gradient(180deg, var(--sp-bg-elev-1) 0%, var(--sp-bg) 100%);
+  border-right: 1px solid var(--sp-line);
+}
+.sp-setup__mark {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+}
+.sp-setup__mark svg { height: 30px; width: auto; max-width: 100%; display: block; }
+
+.sp-setup__pitch { max-width: 30ch; }
+.sp-setup__pitch-head {
+  margin: 0;
+  font-family: var(--sp-font-display);
+  font-size: clamp(1.75rem, 2.6vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--sp-text);
+}
+.sp-setup__pitch-body {
+  margin: var(--sp-space-3) 0 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--sp-muted-strong);
+}
+
+.sp-setup__brand-foot { display: flex; flex-direction: column; gap: var(--sp-space-3); }
+.sp-setup__demo {
+  margin: 0;
+  max-width: 46ch;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--sp-muted);
+}
+.sp-setup__demo strong { color: var(--sp-warn); font-weight: 600; }
+
+/* Right: form panel ------------------------------------------------------- */
+
+.sp-setup__panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-space-10) var(--sp-space-8);
+  background: var(--sp-bg);
+}
+.sp-setup__panel-inner { width: 100%; max-width: 400px; }
+
+.sp-setup__steps {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-2-5);
+  margin: 0 0 var(--sp-space-6);
+  padding: 0;
+  list-style: none;
+}
+.sp-setup__step-dot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-1-5);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--sp-muted);
+}
+.sp-setup__step-dot::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: var(--sp-corners-pill);
+  background: var(--sp-line);
+  transition: background var(--sp-dur-fast) var(--sp-ease-out);
+}
+.sp-setup__step-dot + .sp-setup__step-dot { margin-left: var(--sp-space-2); }
+.sp-setup__step-dot.is-current { color: var(--sp-accent); }
+.sp-setup__step-dot.is-current::before { background: var(--sp-accent); }
+.sp-setup__step-dot.is-done::before { background: var(--sp-muted); }
+
+.sp-setup__panel h1 {
+  margin: 0;
+  font-family: var(--sp-font-display);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+.sp-setup__lede {
+  margin: var(--sp-space-2) 0 var(--sp-space-6);
+  color: var(--sp-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+/* Shared form primitives (also consumed by sp-setup-agents) ---------------- */
+
+.sp-setup__field { margin-bottom: var(--sp-space-4-5); display: flex; flex-direction: column; gap: var(--sp-space-1-5); }
+.sp-setup__field input { width: 100%; border-radius: var(--sp-corners-sm); padding: var(--sp-space-3) var(--sp-space-3-5); }
+.sp-setup__field input:focus {
+  border-color: var(--sp-accent);
+  box-shadow: 0 0 0 3px var(--sp-accent-ring);
+}
+.sp-setup__field label {
+  font-size: 11px;
+  color: var(--sp-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* flex-start + nudge keeps the dot optically on the first line when the probe
+ * reason wraps, instead of drifting to the middle of a two-line block. */
+.sp-setup__status {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-space-1-5);
+  font-size: 12px;
+  min-height: 18px;
+  line-height: 1.45;
+}
+.sp-setup__status .sp-dot { margin-top: 0.4em; flex: none; }
+
+.sp-setup__hint {
+  margin: var(--sp-space-1) 0 0;
+  font-size: 12px;
+  color: var(--sp-muted);
+  line-height: 1.5;
+}
+.sp-setup__hint--gate { color: var(--sp-warn); }
+
+.sp-setup__keep { display: flex; align-items: center; gap: var(--sp-space-2); font-size: 13px; }
+
+.sp-setup__pat-link {
+  color: var(--sp-accent);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--sp-accent) 50%, transparent);
+}
+.sp-setup__pat-link:hover { color: var(--sp-accent); }
+.sp-setup__pat-link[aria-disabled="true"],
+.sp-setup__pat-link.is-disabled {
+  color: var(--sp-muted);
+  border-bottom-color: transparent;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.sp-setup__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-space-3);
+}
+.sp-setup__actions .sp-btn-primary,
+.sp-setup__actions .sp-btn-ghost {
+  padding: var(--sp-space-3) var(--sp-space-4-5);
+  font-size: 13px;
+}
+.sp-setup__error {
+  display: flex;
+  gap: var(--sp-space-2);
+  margin-top: var(--sp-space-3);
+  padding: var(--sp-space-2-5) var(--sp-space-3);
+  border: 1px solid color-mix(in srgb, var(--sp-err) 40%, transparent);
+  border-radius: var(--sp-corners-xs);
+  background: color-mix(in srgb, var(--sp-err) 10%, transparent);
+  font-size: 12px;
+  line-height: 1.45;
+  color: oklch(0.86 0.10 25);
+}
+.sp-setup__error b { font-weight: 700; flex: none; }
+
+.sp-setup__advanced {
+  margin-top: var(--sp-space-6);
+  border-top: 1px solid var(--sp-line-soft);
+  padding-top: var(--sp-space-4);
+}
+.sp-setup__advanced > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--sp-muted);
+  list-style: none;
+}
+.sp-setup__advanced > summary::-webkit-details-marker { display: none; }
+.sp-setup__advanced > summary::before {
+  content: "▸ ";
+  color: var(--sp-muted);
+}
+.sp-setup__advanced[open] > summary::before { content: "▾ "; }
+.sp-setup__advanced > summary:hover { color: var(--sp-text); }
+.sp-setup__advanced > *:not(summary) { margin-top: var(--sp-space-4); }
+
+.sp-setup__warning {
+  margin: var(--sp-space-6) 0 0;
+  padding: var(--sp-space-3) var(--sp-space-3-5);
+  font-size: 13px;
+  line-height: 1.5;
+  color: oklch(0.86 0.13 80);
+  background: oklch(0.78 0.15 75 / 0.10);
+  border: 1px solid oklch(0.78 0.15 75 / 0.35);
+  border-radius: var(--sp-corners-sm);
+}
+.sp-setup__warning strong { color: oklch(0.92 0.13 80); font-weight: 700; }
+
+.sp-setup__meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--sp-muted);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-space-2);
+  line-height: 1.5;
+}
+.sp-setup__meta-sep { color: var(--sp-line); }
+.sp-setup__meta a {
+  color: var(--sp-accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--sp-accent-ring);
+  padding-bottom: var(--sp-space-px);
+  transition: color var(--sp-dur-fast), border-color var(--sp-dur-fast);
+}
+.sp-setup__meta a:hover { color: var(--sp-accent); border-bottom-color: var(--sp-accent); }
+.sp-setup__docs { font-weight: 600; }
+
+/* Connection strip ---------------------------------------------------------
+ *
+ * Always on screen during setup: which gateway, who is signed in, how long the
+ * session is good for, and whether the local proxy is up. Every row is a field
+ * that already existed in `state.snapshot` and was simply never shown here. */
+
+.sp-conn {
+  margin: 0 0 var(--sp-space-6);
+  border: 1px solid var(--sp-line);
+  border-radius: var(--sp-corners-sm);
+  background: var(--sp-bg-elev-1);
+  overflow: hidden;
+}
+.sp-conn--empty { min-height: 40px; }
+
+.sp-conn__row {
+  display: grid;
+  grid-template-columns: 10px 68px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-space-2);
+  padding: var(--sp-space-2-5) var(--sp-space-3);
+  font-size: 12px;
+}
+.sp-conn__row + .sp-conn__row { border-top: 1px solid var(--sp-line-soft); }
+
+.sp-conn__key {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--sp-muted);
+}
+.sp-conn__val {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--sp-text);
+}
+.sp-conn__val--muted { color: var(--sp-muted); }
+.sp-conn__val--warn  { color: var(--sp-warn); }
+.sp-conn__val--err   { color: var(--sp-err); }
+.sp-conn__url { font-family: var(--sp-font-mono); font-size: 11.5px; }
+
+.sp-conn__aside {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-space-2);
+  min-width: 0;
+  font-size: 11px;
+  color: var(--sp-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+}
+/* Text in the aside may ellipsis; a control in it may not shrink. */
+.sp-conn__aside > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* A four-character latency must never be the thing that gets ellipsised. */
+.sp-conn__probe { flex: none; }
+.sp-conn__aside > button { flex: none; }
+.sp-conn__probe { font-family: var(--sp-font-mono); }
+
+.sp-conn__btn {
+  padding: var(--sp-space-0-5) var(--sp-space-2);
+  border: 1px solid var(--sp-line);
+  border-radius: var(--sp-corners-pill);
+  background: transparent;
+  color: var(--sp-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.sp-conn__btn:hover { color: var(--sp-text); border-color: var(--sp-muted); }
+
+/* The gateway address is editable in place on the sign-in step. It keeps core's
+ * `#setup-gateway` id so sp-setup-gateway's focus guard still recognises it. */
+.sp-conn__edit {
+  width: 100%;
+  padding: var(--sp-space-1) var(--sp-space-2);
+  font-family: var(--sp-font-mono);
+  font-size: 11.5px;
+  border-radius: var(--sp-corners-xs);
+}
+
+/* The probe reason gets its own full-width line rather than competing with the
+ * address for the row. Crowding it into the aside squeezed the editable input
+ * to zero width on the sign-in step and pushed Re-check outside the box. */
+.sp-conn__reason {
+  margin: 0;
+  padding: var(--sp-space-1-5) var(--sp-space-3) var(--sp-space-2-5);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--sp-muted);
+}
+.sp-conn__reason[data-state="unreachable"] { color: var(--sp-err); }
+.sp-conn__reason[data-state="probing"] { color: var(--sp-warn); }
+
+.sp-conn__foot {
+  margin: 0;
+  padding: var(--sp-space-2) var(--sp-space-3);
+  border-top: 1px solid var(--sp-line-soft);
+  font-size: 11px;
+  color: var(--sp-muted);
+}
+
+/* Onboarding agent cards ---------------------------------------------------
+ *
+ * Deliberately not `.sp-setup-agent`: core's agents.css owns that name, styles
+ * it as a centred row, and is imported after this file — so the two would
+ * fight. These cards stack their evidence vertically instead. */
+
+.sp-onb-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-space-2-5);
+  margin: var(--sp-space-4) 0 var(--sp-space-1);
+}
+
+.sp-onb-agent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-space-2);
+  padding: var(--sp-space-3) var(--sp-space-3-5);
+  border: 1px solid var(--sp-line);
+  border-left: 3px solid var(--sp-line);
+  border-radius: var(--sp-corners-sm);
+  background: var(--sp-bg-elev-1);
+}
+.sp-onb-agent[data-state="ok"]      { border-left-color: var(--sp-ok); }
+.sp-onb-agent[data-state="warn"]    { border-left-color: var(--sp-warn); }
+.sp-onb-agent[data-state="err"]     { border-left-color: var(--sp-err); }
+.sp-onb-agent[data-state="probing"] { border-left-color: var(--sp-muted); }
+
+.sp-onb-agent__head { display: flex; align-items: center; gap: var(--sp-space-2); }
+.sp-onb-agent__name { font-weight: 700; font-size: 14px; }
+.sp-onb-agent__spacer { flex: 1; }
+.sp-onb-agent__sub { margin: 0; font-size: 12px; color: var(--sp-muted); line-height: 1.45; }
+
+.sp-onb-agent__checks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sp-onb-agent__check {
+  display: flex;
+  gap: var(--sp-space-2);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--sp-muted-strong);
+}
+.sp-onb-agent__check i {
+  flex: none;
+  width: 13px;
+  font-style: normal;
+  font-weight: 700;
+  text-align: center;
+  color: var(--sp-muted);
+}
+.sp-onb-agent__check[data-result="ok"] i   { color: var(--sp-ok); }
+.sp-onb-agent__check[data-result="no"] i   { color: var(--sp-err); }
+.sp-onb-agent__check[data-result="warn"] i { color: var(--sp-warn); }
+.sp-onb-agent__check code {
+  font-family: var(--sp-font-mono);
+  font-size: 11px;
+  color: var(--sp-text);
+}
+
+.sp-onb-agent__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-space-2);
+}
+.sp-onb-agent__foot .sp-btn-primary,
+.sp-onb-agent__foot .sp-btn-ghost {
+  padding: var(--sp-space-2) var(--sp-space-3);
+  font-size: 12px;
+}
+.sp-onb-agent__note { margin: 0; font-size: 11px; color: var(--sp-muted); line-height: 1.45; }
+
+/* A failed install used to be reported through the button's tooltip and a
+ * console warning, which reads as nothing having happened. */
+.sp-onb-agent__error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-space-1-5);
+  padding: var(--sp-space-2-5) var(--sp-space-3);
+  border: 1px solid color-mix(in srgb, var(--sp-err) 40%, transparent);
+  border-radius: var(--sp-corners-xs);
+  background: color-mix(in srgb, var(--sp-err) 10%, transparent);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: oklch(0.86 0.10 25);
+}
+.sp-onb-agent__error b { font-weight: 700; }
+.sp-onb-agent__error code {
+  font-family: var(--sp-font-mono);
+  font-size: 10.5px;
+  word-break: break-word;
+}
+
+/* Closing step -------------------------------------------------------------- */
+
+.sp-setup__done {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-space-2);
+  margin-bottom: var(--sp-space-6);
+}
+.sp-setup__done-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-space-2);
+  font-size: 13px;
+}
+.sp-setup__done-row i { font-style: normal; font-weight: 700; color: var(--sp-ok); }
+.sp-setup__done-row[data-ok="no"] i { color: var(--sp-warn); }
+.sp-setup__done-row span { color: var(--sp-muted); }
+.sp-setup__done-row b {
+  font-family: var(--sp-font-mono);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--sp-text);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+
+/* Narrow windows collapse to the form column; the brand panel keeps only its
+ * logo and footer so the pitch never squeezes the form off-screen. */
+@media (max-width: 900px) {
+  .sp-setup__split { grid-template-columns: minmax(0, 1fr); }
+  .sp-setup__brand {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-space-4);
+    padding: var(--sp-space-6);
+    border-right: none;
+    border-bottom: 1px solid var(--sp-line);
+  }
+  .sp-setup__pitch { display: none; }
+  .sp-setup__demo { display: none; }
+  .sp-setup__brand-foot { align-items: flex-end; }
+  .sp-setup__panel { padding: var(--sp-space-8) var(--sp-space-6); align-items: flex-start; }
+}
+
+/* The strip's fixed label column is the first thing to squeeze on a narrow
+   window; drop the label and let the value take the width. */
+@media (max-width: 900px) {
+  .sp-conn__row { grid-template-columns: 10px minmax(0, 1fr) auto; }
+  .sp-conn__key { display: none; }
+  .sp-onb-agent__foot { gap: var(--sp-space-1-5); }
+}

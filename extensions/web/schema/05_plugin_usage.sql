@@ -1,0 +1,35 @@
+-- Consolidated schema: Plugin usage events
+
+CREATE TABLE IF NOT EXISTS plugin_usage_events (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    tool_name TEXT,
+    plugin_id TEXT,
+    metadata JSONB DEFAULT '{}',
+    dedup_key TEXT,
+    prompt_preview TEXT,
+    description TEXT,
+    cwd TEXT,
+    content_input_bytes BIGINT DEFAULT 0,
+    content_output_bytes BIGINT DEFAULT 0,
+    -- AI-authored line deltas, computed at ingest from the un-truncated
+    -- Edit/Write tool input (sanitize_metadata destroys the diff text, so
+    -- these numbers cannot be back-derived later). Converged on established
+    -- databases by migrations/027_usage_loc_columns.sql.
+    loc_added BIGINT NOT NULL DEFAULT 0,
+    loc_removed BIGINT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_plugin_usage_user ON plugin_usage_events(user_id, created_at DESC);
+-- Composite matches the trace CTE shape (created_at range, grouped by
+-- session_id); converged on established databases by
+-- migrations/029_analytics_indexes.sql, which also drops the old
+-- single-column session_id index the leftmost column covers.
+CREATE INDEX IF NOT EXISTS idx_plugin_usage_session_created ON plugin_usage_events(session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_plugin_usage_event_type ON plugin_usage_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_plugin_usage_tool_name ON plugin_usage_events(tool_name) WHERE tool_name IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_plugin_usage_created_at ON plugin_usage_events(created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_plugin_usage_dedup ON plugin_usage_events(dedup_key) WHERE dedup_key IS NOT NULL;

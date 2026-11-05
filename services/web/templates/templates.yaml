@@ -1,0 +1,8 @@
+templates:
+  docs-page:
+    content_types:
+      - guide
+      - reference
+      - tutorial
+      - docs
+      - documentation

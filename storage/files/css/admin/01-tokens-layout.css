@@ -1,0 +1,28 @@
+@layer tokens {
+:root {
+    --sp-radius-card: 1rem;
+    --sp-radius-card-inner: 0.625rem;
+    --sp-radius-widget: 1.25rem;
+    --sp-radius-button: 0.5rem;
+    --sp-radius-badge: 0.375rem;
+    --sp-radius-brand-tr: 0.375rem;
+    --sp-radius-card-brand: var(--sp-corners-md);
+    --sp-radius-card-inner-brand: var(--sp-corners-inner-md);
+    --sp-radius-widget-brand: 1.25rem 0.375rem 1.25rem 1.25rem;
+
+    --sp-z-sticky: 1;
+    --sp-z-sticky-header: 3;
+    --sp-z-sidebar: 900;
+    --sp-z-sidebar-drawer: 950;
+    --sp-z-dropdown: 1000;
+    --sp-z-panel: 1100;
+    --sp-z-modal: 1500;
+    --sp-z-modal-backdrop: 1400;
+    --sp-z-lightbox: 2000;
+    --sp-z-toast: 2500;
+
+    --sp-overlay-light:  rgba(23, 23, 23, 0.3);
+    --sp-overlay-medium: rgba(23, 23, 23, 0.5);
+    --sp-overlay-heavy:  rgba(23, 23, 23, 0.7);
+}
+}

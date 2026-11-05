@@ -1,0 +1,28 @@
+[package]
+name = "systemprompt-web-content"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Content pipeline extension for the systemprompt.io template: Markdown ingestion, content sources, and governed publishing."
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[dependencies]
+systemprompt-web-shared = { workspace = true }
+# Audit: uses only identifiers, models — `core` (default) is sufficient.
+systemprompt = { workspace = true }
+sqlx = { workspace = true }
+axum = { workspace = true }
+serde = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+sha2 = { workspace = true }
+url = { workspace = true }
+walkdir = { workspace = true }
+serde_yaml = { workspace = true }
+rand = { workspace = true }
+
+[lints]
+workspace = true
