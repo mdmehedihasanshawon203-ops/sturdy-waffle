@@ -1,0 +1,101 @@
+name: Helm — lint, test, release
+
+# Release publication is called after the image is available.
+on:
+  workflow_call:
+    inputs:
+      ref:
+        required: true
+        type: string
+      publish:
+        type: boolean
+        default: false
+  pull_request:
+    paths: ["helm/**", ".github/workflows/helm.yml"]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Commit or release tag to test"
+        type: string
+        required: true
+      publish:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
+        with:
+          version: v3.14.0
+
+      - name: Lint chart with required deployment values
+        run: helm lint helm/gateway --set externalDatabase.url=postgres://test:test@postgres:5432/test --set adminEmail=smoke@example.invalid
+      - uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
+        if: github.event_name != 'pull_request'
+      - name: Install and test the release image
+        if: github.event_name != 'pull_request'
+        run: bash scripts/smoke-helm.sh
+      - name: Collect Kubernetes diagnostics
+        if: failure() && github.event_name != 'pull_request'
+        run: |
+          kubectl get pods -o wide
+          kubectl describe pods
+          kubectl logs -l app.kubernetes.io/instance=gateway --all-containers --tail=100
+
+  release:
+    if: inputs.publish == true
+    needs: lint-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Configure git
+        run: |
+          git config user.name  "systemprompt-bot"
+          git config user.email "bot@systemprompt.io"
+
+      - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
+
+      - name: Package chart
+        run: |
+          mkdir -p dist
+          helm package helm/gateway --destination dist/
+          ls -la dist/
+
+      - name: Publish chart to systempromptio/charts gh-pages
+        env:
+          GH_TOKEN: ${{ secrets.CHARTS_REPO_TOKEN }}
+        run: |
+          set -e
+          # Clone the charts repo's gh-pages branch
+          git clone --branch gh-pages --depth 1 \
+            "https://x-access-token:${GH_TOKEN}@github.com/systempromptio/charts.git" \
+            /tmp/charts
+          cp dist/*.tgz /tmp/charts/
+          cd /tmp/charts
+          # Regenerate index.yaml including the new .tgz plus all pre-existing ones
+          helm repo index . --url https://charts.systemprompt.io
+          git config user.name  "systemprompt-bot"
+          git config user.email "bot@systemprompt.io"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Chart already at current version — nothing to commit"
+          else
+            git commit -m "Publish gateway chart $(ls gateway-*.tgz | tail -1 | sed -E 's/.*-([0-9.]+)\.tgz/v\1/')"
+            git push origin gh-pages
+          fi

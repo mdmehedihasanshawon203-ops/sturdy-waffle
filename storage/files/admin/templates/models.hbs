@@ -1,0 +1,119 @@
+{{#> layout title=title page=page}}
+    {{#*inline "content"}}
+    {{> components/breadcrumbs crumbs=breadcrumbs}}
+    {{#> components/page-header title=title subtitle="What the gateway will route to, and whether a chosen person may call each model."}}
+        {{#*inline "header_actions"}}
+        <a class="sp-btn sp-btn--sm sp-btn--outline" href="{{requests_link}}">Open requests</a>
+        <a class="sp-btn sp-btn--sm sp-btn--outline" href="/admin/access-control">Access control</a>
+        {{/inline}}
+        {{#*inline "header_meta"}}
+        {{#if has_selection}}<span>Showing access and usage for <strong>{{selected_user_label}}</strong></span>{{else}}<span>No user selected — the table shows the routes as configured.</span>{{/if}}
+        {{/inline}}
+    {{/components/page-header}}
+
+    <section class="sp-kpi-grid" aria-label="Models and usage">
+        {{#each kpis}}
+        {{> components/kpi label=this.label value=this.value note=this.note tone=this.tone}}
+        {{/each}}
+    </section>
+
+    <form class="sp-toolbar" method="get" action="{{base_url}}" role="search" aria-label="Choose a user" data-models="form">
+        <span class="sp-toolbar__count">{{model_count}} models</span>
+        <div class="sp-toolbar__field">
+            <label class="sp-toolbar__field-label" for="model-user-select">User</label>
+            <select class="sp-select sp-p-models__select" id="model-user-select" name="user_id" data-models="user">
+                <option value="">Select a user…</option>
+                {{#each users}}<option value="{{id}}"{{#if selected}} selected{{/if}}>{{label}}</option>{{/each}}
+            </select>
+        </div>
+        <label class="sp-u-sr-only" for="model-search">Search models</label>
+        <div class="sp-toolbar__search">
+            <input class="sp-search-input" id="model-search" type="search" name="q" value="{{search}}" placeholder="Model, provider or route">
+        </div>
+        <div class="sp-toolbar__actions">
+            {{#if has_search}}<a class="sp-btn sp-btn--sm sp-btn--outline" href="{{base_url}}">Clear</a>{{/if}}
+            <button type="submit" class="sp-btn sp-btn--sm sp-btn--secondary">Show</button>
+        </div>
+    </form>
+
+    <section aria-label="Model availability" data-page="models" data-user-id="{{selected_user_id}}">
+    {{#if models}}
+    {{#> components/table caption="Gateway routes and per-user access" modifier="sp-p-models__table"}}
+        <thead><tr>
+            <th scope="col">Model</th>
+            <th scope="col">Provider</th>
+            <th scope="col">Route</th>
+            <th scope="col">Upstream</th>
+            <th scope="col" class="sp-col-status">Status</th>
+            <th scope="col" class="sp-table__cell--actions">{{#if has_selection}}Access{{else}}<span class="sp-u-sr-only">Access</span>{{/if}}</th>
+        </tr></thead>
+        <tbody>
+        {{#each models}}
+        <tr data-route-id="{{route_id}}">
+            <td class="sp-u-mono sp-u-truncate" title="{{model_pattern}}">{{model_pattern}}</td>
+            <td>{{> components/badge tone="muted" text=provider}}</td>
+            <td class="sp-u-mono sp-u-truncate" title="{{route_id}}">{{route_id}}</td>
+            <td class="sp-u-mono sp-u-truncate" title="{{upstream_model}}">{{upstream_model}}</td>
+            <td>{{> components/badge tone=status_tone text=status_label}}</td>
+            <td class="sp-table__cell--actions">
+                {{#if ../has_selection}}
+                {{#if denied}}
+                <button type="button" class="sp-btn sp-btn--xs sp-btn--outline" data-action="enable-model" data-route-id="{{route_id}}" data-rule-id="{{deny_rule_id}}">Enable</button>
+                {{else}}
+                <button type="button" class="sp-btn sp-btn--xs sp-btn--outline-danger" data-action="disable-model" data-route-id="{{route_id}}">Disable</button>
+                {{/if}}
+                {{else}}
+                <span class="sp-u-text-muted-inline">select a user</span>
+                {{/if}}
+            </td>
+        </tr>
+        {{/each}}
+        </tbody>
+    {{/components/table}}
+    {{else}}
+    {{#if has_search}}
+    {{> components/empty-state heading="No routes match" message="No route in services/ai/gateway.yaml matches that search. Clear it to see the whole catalogue."}}
+    {{else}}
+    {{> components/empty-state heading="No gateway routes" message="services/ai/gateway.yaml declares no routes, so there is nothing to grant or deny."}}
+    {{/if}}
+    {{/if}}
+    </section>
+
+    {{#if has_selection}}
+    {{#> components/section title="Usage" count=usage_count note="Every /v1/messages call this user made in the last 24h, newest first."}}{{/components/section}}
+    {{#if has_usage}}
+    {{#> components/table caption="Recent requests for the selected user" modifier="sp-p-models__usage"}}
+        <thead><tr>
+            <th scope="col" class="sp-col-date">Time</th>
+            <th scope="col">Model</th>
+            <th scope="col">Provider</th>
+            <th scope="col" class="sp-col-status">Status</th>
+            <th scope="col" class="sp-table__cell--num">Tokens in / out</th>
+            <th scope="col" class="sp-table__cell--num">Cost</th>
+            <th scope="col" class="sp-table__cell--num">Latency</th>
+            <th scope="col" class="sp-table__cell--num">Denials</th>
+        </tr></thead>
+        <tbody>
+        {{#each usage}}
+        <tr>
+            <td class="sp-table__cell--date">{{created_at}}</td>
+            <td class="sp-u-mono sp-u-truncate" title="{{model}}">{{model}}</td>
+            <td>{{> components/badge tone="muted" text=provider}}</td>
+            <td>{{> components/badge tone=status_tone text=status}}</td>
+            <td class="sp-table__cell--num sp-u-num">{{tokens}}</td>
+            <td class="sp-table__cell--num sp-u-num sp-u-mono">{{cost}}</td>
+            <td class="sp-table__cell--num sp-u-num">{{latency_ms}} ms</td>
+            <td class="sp-table__cell--num sp-u-num">{{deny_count}}</td>
+        </tr>
+        {{/each}}
+        </tbody>
+    {{/components/table}}
+    {{else}}
+    {{> components/empty-state heading="No requests yet" message="Drive a request through the gateway (for example the Pi coding agent) and it appears here."}}
+    {{/if}}
+    {{/if}}
+    {{/inline}}
+    {{#*inline "scripts"}}
+    <script data-cfasync="false" type="module" src="/js/pages/admin-models.js?v={{css_version}}"></script>
+    {{/inline}}
+{{/layout}}

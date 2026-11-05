@@ -1,0 +1,64 @@
+//! Typed template context for the conversation-history page.
+
+use serde::Serialize;
+use systemprompt::identifiers::{SessionId, UserId};
+
+use crate::handlers::ssr::list_view::Pagination;
+use crate::handlers::ssr::types::{BreadcrumbView, TabLinkView};
+
+#[derive(Debug, Serialize)]
+pub(super) struct HistoryPageContext {
+    pub page: &'static str,
+    pub title: &'static str,
+    pub search_query: String,
+    pub filter_user_id: Option<String>,
+    pub scope_label: String,
+    pub has_rows: bool,
+    pub rows: Vec<HistoryRowView>,
+    pub show_side: bool,
+    pub side_toggle_url: String,
+    pub window_links: Vec<TabLinkView>,
+    pub window_label: String,
+    pub window_inputs: Vec<HiddenInputView>,
+    pub base_url: &'static str,
+    pub pagination: Pagination,
+    pub breadcrumbs: Vec<BreadcrumbView>,
+    pub export: crate::export::ExportView,
+}
+
+// Why: the window's own parameters, carried through the search form so a
+// search stays inside the window it was typed in.
+#[derive(Debug, Serialize)]
+pub(super) struct HiddenInputView {
+    pub name: &'static str,
+    pub value: String,
+}
+
+#[derive(Debug, Serialize)]
+pub(crate) struct HistoryRowView {
+    pub source: &'static str,
+    pub is_gateway: bool,
+    pub session_id: Option<SessionId>,
+    pub short_id: String,
+    // Why: not `title`. The page is rendered inside `{{#> layout title=title}}`,
+    // and that hash parameter shadows a field of the same name at every depth,
+    // so `{{this.title}}` in the row loop printed the page's own title on every
+    // row instead of the conversation's.
+    pub conversation_title: String,
+    pub user_id: UserId,
+    pub user_label: String,
+    pub is_own: bool,
+    pub model: Option<String>,
+    pub when_relative: String,
+    pub when_at: String,
+    pub entries_counted: i64,
+    pub side_call_count: i64,
+    pub tokens_display: String,
+    pub tokens_title: String,
+    pub cost_display: Option<String>,
+    pub snippet: Option<String>,
+    // Why: the gateway detail page is owner-facing, so every viewer gets a
+    // link; the transcript detail page is the admin session view, so only an
+    // admin does.
+    pub detail_url: Option<String>,
+}

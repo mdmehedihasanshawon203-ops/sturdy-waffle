@@ -1,0 +1,118 @@
+{{- if and (gt (int .Values.replicaCount) 1) (not .Values.profile.existingSecret) -}}
+{{- fail "profile.existingSecret is required for multiple replicas so every pod shares one identity" -}}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "gateway.fullname" . }}
+  labels: {{- include "gateway.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  {{- if and .Values.persistence.enabled (not .Values.profile.existingSecret) }}
+  strategy:
+    type: Recreate
+  {{- end }}
+  selector:
+    matchLabels: {{- include "gateway.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels: {{- include "gateway.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "gateway.serviceAccountName" . }}
+      securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: gateway
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            {{- if .Values.profile.existingSecret }}
+            - name: SYSTEMPROMPT_PROFILE_DIR
+              value: /app/.systemprompt/profiles/docker
+            {{- else }}
+            - name: ADMIN_EMAIL
+              value: {{ required "adminEmail is required for first boot" .Values.adminEmail | quote }}
+            {{- end }}
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "8080"
+            - name: DATABASE_URL
+              value: {{ include "gateway.databaseUrl" . | quote }}
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "gateway.secretName" . }}
+                  key: anthropic
+                  optional: true
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "gateway.secretName" . }}
+                  key: openai
+                  optional: true
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "gateway.secretName" . }}
+                  key: gemini
+                  optional: true
+            {{- with .Values.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- if or .Values.profile.existingSecret .Values.persistence.enabled }}
+          volumeMounts:
+            - name: profile
+              mountPath: /app/.systemprompt/profiles/docker
+              readOnly: {{ if .Values.profile.existingSecret }}true{{ else }}false{{ end }}
+          {{- end }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.healthcheck.path }}
+              port: http
+            periodSeconds: 5
+            failureThreshold: 120
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.healthcheck.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.healthcheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.healthcheck.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.healthcheck.path }}
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+      {{- if or .Values.profile.existingSecret .Values.persistence.enabled }}
+      volumes:
+        - name: profile
+          {{- if .Values.profile.existingSecret }}
+          secret:
+            secretName: {{ .Values.profile.existingSecret }}
+            defaultMode: 0440
+          {{- else }}
+          persistentVolumeClaim:
+            claimName: {{ include "gateway.fullname" . }}-profile
+          {{- end }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}

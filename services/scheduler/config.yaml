@@ -1,0 +1,295 @@
+# Scheduler Configuration
+# Background jobs and scheduled tasks.
+#
+# Every job declares an explicit `owner:` — a real users.name that authorizes
+# this job's actions. The configured owner becomes JobContext.actor for every
+# `execute()` call and is the principal recorded in audit rows.
+#
+# No "system" user. No magic strings. `admin` is the bootstrap admin user
+# created at install time (`just setup-local`). Deployments that want a
+# different authorizer should change `owner:` to a different admin's username.
+
+scheduler:
+  enabled: true
+  jobs:
+    - name: usage_anomaly
+      extension: web
+      owner: admin
+      enabled: true
+
+    - name: usage_daily_rollup
+      extension: web
+      owner: admin
+      enabled: true
+
+    - name: scope_defaults_recompute
+      extension: web
+      owner: admin
+      enabled: true
+
+    # Core jobs (defined in systemprompt-core)
+    # Re-reads the composed services tree every minute and records the
+    # managed inventory (marketplaces, plugins, skills) it observes.
+    - name: managed_inventory_refresh
+      extension: core
+      owner: admin
+      schedule: "0 * * * * *"
+      enabled: true
+
+    - name: oauth_cleanup
+      extension: core
+      owner: admin
+      schedule: "0 5 3 * * *"
+      enabled: true
+
+    - name: user_rate_limit_prune
+      extension: core
+      owner: admin
+      schedule: "0 0 * * * *"
+      enabled: true
+      enforce: true
+
+    # Drops expired Gemini thought signatures (hourly).
+    - name: thought_signature_cleanup
+      extension: core
+      owner: admin
+      enabled: true
+
+    # Ships the audit trail to the OTLP collector the profile names under
+    # `observability.otlp` (core job, every 15 s by its own schedule). Tails
+    # ai_requests / tool_call_ledger / governance_decisions as spans and the
+    # logs table as log records, by watermark in otlp_export_state; a batch
+    # is acknowledged before its cursor moves. No-op on a profile without
+    # the block.
+    - name: otlp_export
+      extension: core
+      owner: admin
+      enabled: true
+
+    # Hourly validity sweep (web extension): revokes expired group/project
+    # membership, manual roles, access rules and device certificates, and
+    # pulls live credentials when an expiry removes a manage role. The
+    # `valid_until` of a rules.yaml entity binds through this sweep.
+    - name: access_expiry
+      extension: web
+      owner: admin
+      enabled: true
+
+    # Calendar-month quota windows (web extension, interim until core has
+    # calendar windows). Five minutes past UTC midnight: rewrites every
+    # monthly window in ai_gateway_policies to run out at month end and
+    # carries yesterday's bucket into today's. Idempotent for the day, so
+    # `systemprompt infra jobs run quota_month_window` is always safe.
+    - name: quota_month_window
+      extension: web
+      owner: admin
+      enabled: true
+
+    # The conversation judge (web extension): the one AI label on top of the
+    # deterministic conversation record. Every five minutes: queue every
+    # conversation with at least one turn that is quiet for `quiet_minutes`
+    # or whose harness session ended, lease `batch_size`, read each
+    # transcript and ask the model below — in one structured call — for a
+    # title, a summary, the intent category, an outcome and a single 0–100
+    # completion score (did the assistant deliver what was originally asked).
+    # Feeds every /admin/analysis page. Judge calls are audited as this job's
+    # actor and excluded from every conversation view;
+    # `daily_cost_cap_microdollars` stops a run once the day's judge spend
+    # reaches it. The provider must be enabled in services/ai/config.yaml —
+    # the judge runs in-process through AiService, which registers only the
+    # enabled providers. Re-judge one:
+    # `systemprompt infra jobs run conversation_judge -p context_id=<id>`.
+    # Gated by `hooks.judge` on the governance-owning plugin and by the
+    # profile's `judge.automatic`; the manual `context_id` run bypasses
+    # the latter.
+    - name: conversation_judge
+      extension: web
+      owner: admin
+      schedule: "0 */5 * * * *"
+      enabled: true
+      parameters:
+        provider: gemini
+        model: gemini-3.5-flash
+        batch_size: "20"
+        daily_cost_cap_microdollars: "2000000"
+        quiet_minutes: "30"
+
+    # The conversation rollup (web extension): keeps `conversation_facts` —
+    # the per-conversation deterministic record every Analysis page reads —
+    # current, with its per-skill rows (`conversation_skill_facts`, which the
+    # Versions pages read). Every minute it re-derives the rows of each
+    # conversation touched on any plane (gateway, hooks, governance, tools,
+    # artifacts) since a stored watermark, so each change is folded in once.
+    # `-p all=true` rebuilds every row (the backfill after an upgrade).
+    - name: conversation_rollup
+      extension: web
+      owner: admin
+      enabled: true
+
+    - name: cleanup_anonymous_users
+      extension: core
+      owner: admin
+      schedule: "0 0 3 * * *"
+      enabled: true
+
+    - name: cleanup_empty_contexts
+      extension: core
+      owner: admin
+      schedule: "0 0 * * * *"
+      enabled: true
+
+    - name: cleanup_inactive_sessions
+      extension: core
+      owner: admin
+      schedule: "0 0 * * * *"
+      enabled: true
+
+    - name: database_cleanup
+      extension: core
+      owner: admin
+      schedule: "0 0 4 * * *"
+      enabled: true
+
+    # Web extension jobs (publishing pipeline)
+    - name: publish_pipeline
+      extension: web
+      owner: admin
+      schedule: "0 */15 * * * *"
+      enabled: true
+
+    # Standalone core jobs, running on each job's built-in default schedule
+    # (no `schedule:` override). Security jobs run in observe-and-log mode
+    # because `enforce:` defaults to false.
+    - name: no_js_cleanup
+      extension: core
+      owner: admin
+      enabled: true
+
+    - name: ghost_session_cleanup
+      extension: core
+      owner: admin
+      enabled: true
+
+    - name: mcp_session_cleanup
+      extension: core
+      owner: admin
+      enabled: true
+
+    - name: file_ingestion
+      extension: core
+      owner: admin
+      enabled: true
+
+    - name: behavioral_analysis
+      extension: core
+      owner: admin
+      enabled: true
+
+    - name: malicious_ip_blacklist
+      extension: core
+      owner: admin
+      enabled: true
+
+    # Standalone web extension jobs
+    - name: content_analytics_aggregation
+      extension: web
+      owner: admin
+      enabled: true
+
+    - name: secret_migration
+      extension: web
+      owner: admin
+      enabled: true
+
+    # Expires raw evidence older than 90 days — hook events, gateway
+    # requests and what hangs off them — in one transaction (web extension).
+    # conversation_facts and conversation_skill_facts are kept.
+    - name: plugin_usage_retention
+      extension: web
+      owner: admin
+      enabled: true
+
+    # Data lifecycle: measure daily, archive raw weeks before they expire,
+    # archive the rollups monthly (kept forever) and run the health check.
+    # Archives land under storage/exports/{weekly,monthly}/ and are listed on
+    # /admin/lifecycle. Parameters: weeks_back / keep_weeks (26) on the
+    # weekly job, months_back / keep_months (0 = forever) on the monthly one.
+    - name: retention_daily_report
+      extension: web
+      owner: admin
+      schedule: "0 30 4 * * *"
+      enabled: true
+
+    - name: retention_export_weekly
+      extension: web
+      owner: admin
+      schedule: "0 0 2 * * 0"
+      enabled: true
+
+    - name: retention_export_monthly
+      extension: web
+      owner: admin
+      schedule: "0 30 2 1 * *"
+      enabled: true
+
+    # publish_pipeline sub-steps. The composite above runs each of these every
+    # 15 minutes in dependency order; scheduling them independently would
+    # double-run them, so they are disabled here (an explicit entry also
+    # records the decision and silences the boot warning).
+    - name: blog_content_ingestion
+      extension: web
+      owner: admin
+      enabled: false
+
+    - name: bundle_admin_css
+      extension: web
+      owner: admin
+      enabled: false
+
+    - name: copy_extension_assets
+      extension: web
+      owner: admin
+      enabled: false
+
+    - name: content_prerender
+      extension: core
+      owner: admin
+      enabled: false
+
+    - name: page_prerender
+      extension: core
+      owner: admin
+      enabled: false
+
+    - name: sitemap_generation
+      extension: web
+      owner: admin
+      enabled: false
+
+    - name: llms_txt_generation
+      extension: web
+      owner: admin
+      enabled: false
+
+    - name: robots_txt_generation
+      extension: web
+      owner: admin
+      enabled: false
+
+  # Run once, serially, at startup before the cron loop begins.
+  #
+  # governance_bootstrap is boot-only: it has no `jobs` entry (so it is never
+  # cron-scheduled) and declares an empty schedule. Its owner defaults to the
+  # system admin. It materialises the profile's gateway-route entities, seeds
+  # every empty sync plane (rules.yaml, groups, gateway policies and routes,
+  # governance chain) from its file and otherwise reports drift, so
+  # authorization is correct at app start.
+  bootstrap_jobs:
+    - governance_bootstrap
+    - managed_inventory_refresh
+    - database_cleanup
+    - cleanup_inactive_sessions
+    # Publish web assets before the cron loop: web/dist is generated, not
+    # shipped in the image, so without this the site 404s until the first
+    # 15-minute publish_pipeline tick.
+    - publish_pipeline

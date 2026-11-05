@@ -1,0 +1,63 @@
+{{!--
+  The Issue token side panel. Rendered by the access-tokens page for admins
+  only, with `user_options` (the selectable owners). The `admin-access-tokens.js`
+  page module opens it, posts to `POST /api/public/admin/users/{id}/pats`, and
+  swaps the body to the success state that shows the secret once.
+--}}
+<div class="sp-panel-overlay" id="create-token-overlay"></div>
+<div class="sp-side-panel" id="create-token-panel" role="dialog" aria-modal="true" aria-labelledby="create-token-title">
+    <div class="sp-panel-header">
+        <h2 id="create-token-title">Issue access token</h2>
+        <button type="button" class="sp-panel-close" aria-label="Close panel">&times;</button>
+    </div>
+    <div class="sp-panel-body">
+        <div data-panel-state="form">
+            <div class="sp-form-group">
+                <label for="new-token-name">Token name</label>
+                <input class="sp-field-input" type="text" id="new-token-name" placeholder="Ed's laptop" autocomplete="off">
+                <p class="sp-field-hint">A label so the token can be told apart in this list.</p>
+            </div>
+            <div class="sp-form-group">
+                <label for="new-token-user">Owner</label>
+                <select class="sp-field-input" id="new-token-user">
+                    <option value="">Select an account</option>
+                    {{#each user_options}}
+                    <option value="{{this.user_id}}">{{this.label}}</option>
+                    {{/each}}
+                </select>
+                <p class="sp-field-hint">Governance resolves the caller's scope from this account's live role on every request.</p>
+            </div>
+            <div class="sp-form-group">
+                <label for="new-token-expires">Expires at</label>
+                <input class="sp-field-input" type="text" id="new-token-expires" placeholder="2026-12-31T23:59:59Z" autocomplete="off">
+                <p class="sp-field-hint">ISO-8601 timestamp. Leave blank for a token that never expires.</p>
+            </div>
+        </div>
+
+        <div data-panel-state="success" hidden>
+            <div class="sp-form-group">
+                <label for="new-token-secret">Personal access token</label>
+                <textarea class="sp-field-input" id="new-token-secret" rows="2" readonly></textarea>
+                <p class="sp-field-hint"><strong>Copy this token now. It is not shown again.</strong></p>
+            </div>
+            <div class="sp-form-group">
+                <label for="new-token-setup-snippet">Connect a client</label>
+                <div class="sp-p-access-tokens__snippet">
+                    <pre class="sp-code-block"><code id="new-token-setup-snippet"></code></pre>
+                    <button type="button" class="sp-btn sp-btn--sm sp-btn--outline sp-btn--copy" data-action="copy-snippet" aria-label="Copy setup snippet">Copy</button>
+                </div>
+                <p class="sp-field-hint">Run this on the machine that will use the token. It stores the token for the gateway client and checks it reaches the gateway.</p>
+            </div>
+        </div>
+    </div>
+    <div class="sp-panel-footer">
+        <div data-panel-state="form">
+            <button type="button" class="sp-btn sp-btn--secondary" data-action="cancel">Cancel</button>
+            <button type="button" class="sp-btn sp-btn--primary" data-action="save">Issue token</button>
+        </div>
+        <div data-panel-state="success" hidden>
+            <button type="button" class="sp-btn sp-btn--secondary" data-action="copy-snippet">Copy setup snippet</button>
+            <button type="button" class="sp-btn sp-btn--primary" data-action="done">Done</button>
+        </div>
+    </div>
+</div>

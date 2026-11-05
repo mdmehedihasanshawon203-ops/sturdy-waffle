@@ -1,0 +1,290 @@
+#!/bin/bash
+# SEED DATA — Populate the Enterprise Demo with baseline state for every demo.
+# Run after 00-preflight.sh. Idempotent enough to re-run; reseeding will
+# re-post governance events and create additional contexts.
+#
+# What this populates:
+#   1. Contexts (demo-review, incident-response, onboarding)
+#   2. Files uploaded from demo/fixtures/ (uploads, user_activity)
+#   3. Governance decisions — allow, scope_restriction, secret_scan,
+#      tool_blocklist — across 5 sessions, both agents, 6 tool names
+#      (governance_decisions)
+#   4. PostToolUse tracking events across sessions (plugin_usage_events)
+#   5. Synthetic page view traffic — 100 rows into engagement_events +
+#      user_sessions (real analytics tables that power the traffic dashboard)
+#   6. Content ingestion (markdown_content)
+#
+# Optional:
+#   SEED_AGENT_RUN=1 ./demo/01-seed-data.sh
+#     Additionally sends a real A2A message to developer_agent which produces
+#     a trace + artifact + cost row. Costs a few cents of Gemini tokens.
+#
+# Cost: Free by default. ~$0.01 with SEED_AGENT_RUN=1.
+
+set -e
+
+source "$(cd "$(dirname "$0")" && pwd)/_common.sh"
+load_token
+
+header "SEED DATA" "Populating Enterprise Demo with baseline state"
+
+# ── STEP 1: Contexts ───────────────────────────
+subheader "STEP 1: Create contexts"
+for ctx in demo-review incident-response onboarding; do
+  info "Creating context: $ctx"
+  "$CLI" core contexts create --name "$ctx" --profile "$PROFILE" > /dev/null 2>&1 || true
+done
+pass "3 contexts ensured"
+echo ""
+
+# ── STEP 2: Files ──────────────────────────────
+subheader "STEP 2: Upload sample files"
+CONTEXT_ID=$("$CLI" --json core contexts list --profile "$PROFILE" 2>/dev/null \
+  | grep -oE '"id":\s*"[^"]+"' | head -1 | sed -E 's/.*"([^"]+)"$/\1/')
+if [[ -z "$CONTEXT_ID" ]]; then
+  warn "No context id found; using 'demo-review' literal"
+  CONTEXT_ID="demo-review"
+fi
+for f in "$DEMO_ROOT/fixtures/"*.{md,txt,png,wav}; do
+  [[ -f "$f" ]] || continue
+  info "Uploading: $(basename "$f")"
+  "$CLI" core files upload "$f" --context "$CONTEXT_ID" --profile "$PROFILE" > /dev/null 2>&1 || true
+done
+pass "Fixture files uploaded (documents, images, audio)"
+echo ""
+
+# ── STEP 3: Governance decisions ───────────────
+subheader "STEP 3: Generate governance decisions"
+
+gov() {
+  local session="$1" agent="$2" tool="$3" input="$4"
+  curl -s -X POST "$BASE_URL/api/public/hooks/govern?plugin_id=enterprise-demo" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "{\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"$tool\",\"agent_id\":\"$agent\",\"session_id\":\"$session\",\"cwd\":\"$PROJECT_DIR\",\"tool_input\":$input}" \
+    > /dev/null 2>&1 || true
+}
+
+track() {
+  local session="$1" agent="$2" tool="$3" input="$4" latency="$5"
+  curl -s -X POST "$BASE_URL/api/public/hooks/track?plugin_id=enterprise-demo" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "{\"hook_event_name\":\"PostToolUse\",\"tool_name\":\"$tool\",\"agent_id\":\"$agent\",\"session_id\":\"$session\",\"cwd\":\"$PROJECT_DIR\",\"tool_input\":$input,\"tool_response\":\"ok\"}" \
+    > /dev/null 2>&1 || true
+}
+
+# developer_agent sessions — admin scope, should mostly allow
+for i in 1 2 3 4 5; do
+  s="session-dev-0$i"
+  gov "$s" developer_agent Read '{"file":"src/main.rs"}'
+  gov "$s" developer_agent Bash '{"command":"cargo check"}'
+  gov "$s" developer_agent mcp__systemprompt__list_agents '{"filter":"all"}'
+  gov "$s" developer_agent mcp__systemprompt__list_skills '{}'
+  track "$s" developer_agent Read '{"file":"src/main.rs"}' $((50 + i * 30))
+  track "$s" developer_agent Bash '{"command":"cargo check"}' $((1200 + i * 250))
+done
+pass "20 developer_agent governance events (allows + tracking)"
+
+# associate_agent sessions — user scope hitting admin tools (should deny)
+for i in 1 2 3 4 5; do
+  s="session-assoc-0$i"
+  gov "$s" associate_agent Read '{"file":"README.md"}'
+  gov "$s" associate_agent WebSearch '{"query":"ai governance"}'
+  gov "$s" associate_agent mcp__systemprompt__list_agents '{"filter":"enabled"}'
+  gov "$s" associate_agent mcp__systemprompt__delete_agent '{"agent":"x"}'
+  track "$s" associate_agent Read '{"file":"README.md"}' $((40 + i * 20))
+  track "$s" associate_agent WebSearch '{"query":"ai governance"}' $((800 + i * 150))
+done
+pass "20 associate_agent governance events (mix of allow + scope_restriction)"
+
+# Secret-injection denials
+for i in 1 2 3; do
+  s="session-secret-0$i"
+  gov "$s" developer_agent Write '{"content":"AKIA1234567890ABCDEF"}'
+  gov "$s" associate_agent Write '{"content":"sk-ant-demo-FAKE1234567890"}'
+done
+pass "6 secret_scan denial events"
+
+# Destructive blocklist hits from associate_agent
+for i in 1 2; do
+  s="session-destroy-0$i"
+  gov "$s" associate_agent drop_table '{"table":"users"}'
+  gov "$s" associate_agent delete_user '{"id":"42"}'
+done
+pass "4 tool_blocklist denial events"
+echo ""
+
+# ── STEP 4: Synthetic page view traffic ────────
+subheader "STEP 4: Generate synthetic page view traffic"
+# Inserts directly into the real analytics tables that power the traffic
+# dashboard (engagement_events + user_sessions) so every KPI — top pages,
+# referrer split, geo split, device breakdown — has live data. Uses psql
+# because `infra db query` is read-only.
+DB_URL="$(grep database_url "$PROJECT_DIR/.systemprompt/profiles/$PROFILE/secrets.json" 2>/dev/null \
+  | head -1 \
+  | sed 's/.*"database_url".*"\(postgres[^"]*\)".*/\1/')"
+if [[ -z "$DB_URL" ]] || ! command -v psql >/dev/null 2>&1; then
+  warn "Skipping traffic seed (psql or database_url unavailable)"
+else
+  psql "$DB_URL" -v ON_ERROR_STOP=1 -q <<'SQL' > /dev/null
+  WITH dims AS (
+    SELECT
+      -- engagement_events.user_id is NOT NULL; fall back to any existing
+      -- user when the demo account is absent so synthetic traffic still seeds.
+      COALESCE(
+        (SELECT id FROM users WHERE email = 'demo@systemprompt.io' LIMIT 1),
+        (SELECT id FROM users ORDER BY created_at LIMIT 1)
+      ) AS demo_user_id,
+      ARRAY['/dashboard','/admin/plugins','/admin/agents','/admin/skills','/admin/governance','/content/guides/ai-governance','/content/guides/claude-code','/analytics/costs','/analytics/traffic','/infra/logs']::text[] AS paths,
+      ARRAY['google','hackernews','twitter','reddit','Direct']::text[] AS sources,
+      ARRAY['US','GB','DE','FR','JP','AU','CA','SE','IN','BR']::text[] AS countries,
+      ARRAY['desktop','desktop','mobile','tablet']::text[] AS devices,
+      ARRAY['Chrome','Firefox','Safari','Edge']::text[] AS browsers
+  ),
+  pick AS (
+    SELECT
+      i,
+      d.demo_user_id,
+      'traffic-' || i AS sid,
+      d.paths[1 + (random()*(array_length(d.paths,1)-1))::int] AS page_url,
+      d.sources[1 + (random()*(array_length(d.sources,1)-1))::int] AS ref_source,
+      d.countries[1 + (random()*(array_length(d.countries,1)-1))::int] AS country,
+      d.devices[1 + (random()*(array_length(d.devices,1)-1))::int] AS device_type,
+      d.browsers[1 + (random()*(array_length(d.browsers,1)-1))::int] AS browser,
+      NOW() - (random() * interval '24 hours') AS ts,
+      (30000 + (random()*270000)::int) AS time_on_page_ms,
+      (20 + (random()*80)::int) AS scroll_depth
+    FROM generate_series(1,100) AS i
+    CROSS JOIN dims d
+  ),
+  ins_sessions AS (
+    INSERT INTO user_sessions
+      (session_id, user_id, started_at, last_activity_at, client_id, client_type,
+       request_count, is_bot, is_scanner, country, device_type, browser,
+       referrer_source, landing_page, session_source)
+    SELECT
+      sid, demo_user_id, ts, ts + interval '2 minutes', 'sp_web', 'firstparty',
+      3, false, false, country, device_type, browser,
+      ref_source, page_url, 'web'
+    FROM pick
+    ON CONFLICT (session_id) DO NOTHING
+    RETURNING 1
+  )
+  INSERT INTO engagement_events
+    (session_id, user_id, page_url, event_type, time_on_page_ms,
+     max_scroll_depth, created_at, updated_at)
+  SELECT
+    sid, demo_user_id, page_url, 'page_exit', time_on_page_ms,
+    scroll_depth, ts, ts
+  FROM pick;
+SQL
+  pass "100 engagement_events + user_sessions rows seeded"
+fi
+echo ""
+
+# ── STEP 4b: Synthetic agent activity ──────────
+# analytics agents / agent-tracing read agent_tasks within a recent window. The
+# stock rows are stale (older than the 24h dashboard window), so the agent
+# analytics demos would render zeros. Insert fresh COMPLETED/FAILED tasks for
+# both demo agents (free, no AI call) so those demos prove real activity.
+# ON CONFLICT refreshes timestamps so re-running the seed keeps them recent.
+subheader "STEP 4b: Generate synthetic agent activity"
+if [[ -z "$DB_URL" ]] || ! command -v psql >/dev/null 2>&1; then
+  warn "Skipping agent-activity seed (psql or database_url unavailable)"
+else
+  psql "$DB_URL" -v ON_ERROR_STOP=1 -q <<'SQL' > /dev/null
+  WITH agents AS (
+    SELECT unnest(ARRAY['developer_agent','associate_agent']) AS agent_name
+  ),
+  ctx AS (
+    SELECT COALESCE(
+      (SELECT context_id FROM agent_tasks LIMIT 1),
+      (SELECT context_id FROM user_contexts ORDER BY created_at LIMIT 1)
+    ) AS cid
+  ),
+  who AS (
+    SELECT COALESCE(
+      (SELECT id FROM users WHERE email = 'demo@systemprompt.io' LIMIT 1),
+      (SELECT id FROM users ORDER BY created_at LIMIT 1)
+    ) AS uid
+  )
+  INSERT INTO agent_tasks
+    (task_id, context_id, status, status_timestamp, user_id, session_id, trace_id,
+     agent_name, started_at, completed_at, execution_time_ms, metadata,
+     version, created_at, updated_at)
+  SELECT
+    'demo-agent-' || g || '-' || a.agent_name,
+    ctx.cid,
+    CASE WHEN g % 7 = 0 THEN 'TASK_STATE_FAILED' ELSE 'TASK_STATE_COMPLETED' END,
+    t.ts, who.uid, 'session-agentseed-' || g,
+    md5(random()::text || g || a.agent_name),
+    a.agent_name, t.ts, t.ts + (interval '1 second' * (1 + (random()*8)::int)),
+    (800 + (random()*4000)::int),
+    jsonb_build_object('seeded', true, 'demo', 'agent-activity'),
+    1, t.ts, t.ts
+  FROM generate_series(1,8) AS g
+  CROSS JOIN agents a
+  CROSS JOIN ctx
+  CROSS JOIN who
+  CROSS JOIN LATERAL (SELECT NOW() - (random() * interval '20 hours') AS ts) t
+  ON CONFLICT (task_id) DO UPDATE SET
+    status            = EXCLUDED.status,
+    status_timestamp  = EXCLUDED.status_timestamp,
+    started_at        = EXCLUDED.started_at,
+    completed_at      = EXCLUDED.completed_at,
+    execution_time_ms = EXCLUDED.execution_time_ms,
+    created_at        = EXCLUDED.created_at,
+    updated_at        = EXCLUDED.updated_at;
+SQL
+  pass "16 recent agent_tasks seeded (developer_agent + associate_agent)"
+fi
+echo ""
+
+# ── STEP 5: Content ingestion ──────────────────
+subheader "STEP 5: Ingest content"
+cmd "systemprompt infra jobs run blog_content_ingestion"
+"$CLI" infra jobs run blog_content_ingestion --profile "$PROFILE" 2>&1 | tail -3 | sed 's/^/  /' || true
+echo ""
+
+# ── STEP 6: Optional real agent run ────────────
+if [[ "${SEED_AGENT_RUN:-0}" = "1" ]]; then
+  subheader "STEP 6: Real agent invocation (costs tokens)"
+  cmd "systemprompt admin agents message developer_agent --blocking"
+  "$CLI" admin agents message developer_agent \
+    --message "Summarise the governance pipeline in three bullet points." \
+    --blocking --profile "$PROFILE" 2>&1 | tail -15 | sed 's/^/  /' || true
+  echo ""
+else
+  info "Skipping real agent run (set SEED_AGENT_RUN=1 to enable)"
+  echo ""
+fi
+
+# ── Verify ─────────────────────────────────────
+subheader "Verify seed data"
+
+# Structured count via db_count (--json + jq) so the verify survives the
+# table-output format and reports real numbers instead of a parse artefact.
+DECISIONS=$(db_count "SELECT COUNT(*) FROM governance_decisions")
+EVENTS=$(db_count "SELECT COUNT(*) FROM plugin_usage_events")
+CONTENT=$(db_count "SELECT COUNT(*) FROM markdown_content")
+ACTIVITY=$(db_count "SELECT COUNT(*) FROM user_activity")
+CONTEXTS=$(db_count "SELECT COUNT(*) FROM user_contexts")
+AGENT_TASKS=$(db_count "SELECT COUNT(*) FROM agent_tasks WHERE created_at > NOW() - INTERVAL '24 hours'")
+
+echo "  governance_decisions:     ${DECISIONS} rows"
+echo "  plugin_usage_events:      ${EVENTS} rows"
+echo "  markdown_content:         ${CONTENT} rows"
+echo "  user_activity:            ${ACTIVITY} rows"
+echo "  user_contexts:            ${CONTEXTS} rows"
+echo "  agent_tasks (last 24h):   ${AGENT_TASKS} rows"
+echo ""
+
+# Fail loudly if the seed did not actually land the core rows every downstream
+# analytics/governance demo depends on.
+assert_min "$DECISIONS"    1 "governance_decisions seeded"
+assert_min "$EVENTS"       1 "plugin_usage_events seeded"
+assert_min "$AGENT_TASKS"  1 "recent agent_tasks seeded (powers agent analytics)"
+echo ""
+
+header "SEED DATA COMPLETE" "All demos now have rich baseline data to display"

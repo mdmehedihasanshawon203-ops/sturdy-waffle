@@ -1,0 +1,47 @@
+@layer components {
+
+.sp-timeseries[data-tone="info"] .sp-timeseries__bar {
+    background: var(--sp-chart-cyan);
+}
+
+.sp-analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-space-4);
+    margin-block: var(--sp-space-6);
+}
+
+/* A panel has a fixed height, not a minimum: the live chart draws its SVG at
+   the host's pixel height, so a panel that grew with its content would grow
+   the SVG, which grows the panel, without end. The donut's ring is sized to
+   the same height so the four panels read as one row. */
+.sp-analytics-grid__panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-space-3);
+    background: var(--sp-bg-surface);
+    border: 1px solid var(--sp-border-subtle);
+    border-radius: var(--sp-corners-md);
+    padding: var(--sp-space-4) var(--sp-space-5);
+    min-width: 0;
+    block-size: 26rem;
+    overflow: auto;
+}
+
+.sp-analytics-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-space-3);
+    margin-block: var(--sp-space-4);
+}
+
+.sp-analytics-filters__group {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-space-2);
+    font-size: var(--sp-text-sm);
+    color: var(--sp-text-secondary);
+}
+
+}

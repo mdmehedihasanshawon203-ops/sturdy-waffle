@@ -1,0 +1,58 @@
+@layer tokens {
+
+/* The brand and warm ramps are the only literal colours in the product. Every
+   accent, surface, border and status value elsewhere is a color-mix() on one of
+   them, so a white-label theme moves the whole system by reassigning this file. */
+
+:root {
+  --sp-primitive-brand-50:  oklch(0.972 0.006 95);
+  --sp-primitive-brand-100: oklch(0.950 0.004 80);
+  --sp-primitive-brand-200: oklch(0.891 0 0);
+  --sp-primitive-brand-300: oklch(0.775 0 0);
+  --sp-primitive-brand-400: oklch(0.548 0 0);
+  --sp-primitive-brand-500: oklch(0.407 0 0);
+  --sp-primitive-brand-600: oklch(0.264 0 0);
+  --sp-primitive-brand-700: oklch(0.196 0 0);
+  --sp-primitive-brand-800: oklch(0.150 0 0);
+  --sp-primitive-brand-900: oklch(0.117 0 0);
+  --sp-primitive-brand-950: oklch(0.072 0 0);
+
+  --sp-primitive-warm-50:  var(--sp-primitive-brand-50);
+  --sp-primitive-warm-100: var(--sp-primitive-brand-100);
+  --sp-primitive-warm-200: var(--sp-primitive-brand-200);
+  --sp-primitive-warm-300: var(--sp-primitive-brand-300);
+  --sp-primitive-warm-400: var(--sp-primitive-brand-300);
+  --sp-primitive-warm-500: var(--sp-primitive-brand-400);
+  --sp-primitive-warm-600: var(--sp-primitive-brand-500);
+  --sp-primitive-warm-700: var(--sp-primitive-brand-600);
+  --sp-primitive-warm-800: var(--sp-primitive-brand-700);
+  --sp-primitive-warm-900: var(--sp-primitive-brand-700);
+  --sp-primitive-warm-950: var(--sp-primitive-brand-900);
+
+  --sp-primitive-accent-red: oklch(0.615 0.245 29);
+  --sp-primitive-white: oklch(1 0 0);
+  --sp-primitive-black: oklch(0 0 0);
+
+  --sp-primitive-green-500:  oklch(0.727 0.194 149);
+  --sp-primitive-green-400:  oklch(0.78 0.16 165);
+  --sp-primitive-green-300:  oklch(0.80 0.18 155);
+  --sp-primitive-amber-500:  oklch(0.823 0.157 82);
+  --sp-primitive-amber-400:  oklch(0.76 0.16 75);
+  --sp-primitive-red-500:    oklch(0.637 0.208 25);
+  --sp-primitive-red-400:    oklch(0.70 0.17 20);
+  --sp-primitive-blue-500:   oklch(0.623 0.214 259);
+  --sp-primitive-blue-400:   oklch(0.70 0.14 250);
+
+  --sp-primitive-accent-blue:         oklch(0.70 0.14 250);
+  --sp-primitive-accent-blue-light:   oklch(0.78 0.10 255);
+  --sp-primitive-accent-purple:       oklch(0.68 0.18 300);
+  --sp-primitive-accent-purple-light: oklch(0.80 0.12 300);
+  --sp-primitive-accent-green:        oklch(0.80 0.18 155);
+  --sp-primitive-accent-green-light:  oklch(0.88 0.14 155);
+  --sp-primitive-accent-pink:         oklch(0.70 0.17 350);
+  --sp-primitive-accent-pink-light:   oklch(0.80 0.12 350);
+  --sp-primitive-accent-cyan:         oklch(0.79 0.13 200);
+  --sp-primitive-accent-cyan-light:   oklch(0.87 0.10 200);
+}
+
+}

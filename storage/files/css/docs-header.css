@@ -1,0 +1,124 @@
+.docs-main {
+  padding: var(--sp-space-8) var(--sp-space-12);
+  min-width: 0;
+}
+
+.docs-article {
+  max-width: none;
+}
+
+.docs-main .breadcrumb {
+  font-size: var(--sp-font-size-sm);
+  color: var(--sp-color-text-secondary);
+  margin-bottom: var(--sp-space-6);
+}
+
+.docs-main .breadcrumb a {
+  color: var(--sp-color-text-secondary);
+  text-decoration: none;
+  transition: color var(--sp-animation-fast) ease;
+}
+
+.docs-main .breadcrumb a:hover {
+  color: var(--sp-color-primary);
+}
+
+.docs-main .breadcrumb__separator {
+  margin: 0 var(--sp-space-1);
+  color: var(--sp-color-text-disabled);
+}
+
+.docs-main .breadcrumb__current {
+  color: var(--sp-color-text-primary);
+}
+
+.docs-header {
+  margin-bottom: var(--sp-space-8);
+  padding-bottom: var(--sp-space-6);
+  border-bottom: 1px solid var(--sp-color-border);
+}
+
+.docs-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-space-4);
+}
+
+.docs-title-row h1 {
+  font-family: var(--sp-font-heading);
+  font-size: 2.5rem;
+  line-height: 1.2;
+  margin: 0;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--sp-color-text-primary);
+}
+
+.docs-header h1 {
+  font-family: var(--sp-font-heading);
+  font-size: 2.5rem;
+  line-height: 1.2;
+  margin: 0 0 var(--sp-space-2) 0;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--sp-color-text-primary);
+}
+
+.docs-description {
+  font-size: var(--sp-font-size-lg);
+  color: var(--sp-color-text-secondary);
+  margin: var(--sp-space-2) 0 var(--sp-space-4) 0;
+  line-height: 1.5;
+}
+
+.docs-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-4);
+  font-size: var(--sp-font-size-sm);
+  color: var(--sp-color-text-disabled);
+}
+
+.docs-export-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--sp-radius-sm);
+  background: transparent;
+  color: var(--sp-color-text-secondary);
+  cursor: pointer;
+  transition: color var(--sp-animation-fast) ease;
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+}
+
+.docs-export-btn:hover {
+  color: var(--sp-color-primary);
+}
+
+.docs-export-btn.copied {
+  color: var(--sp-color-success);
+}
+
+.docs-export-btn svg {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+
+.docs-export-btn .check-icon {
+  display: none;
+}
+
+.docs-export-btn.copied .copy-icon {
+  display: none;
+}
+
+.docs-export-btn.copied .check-icon {
+  display: block;
+}

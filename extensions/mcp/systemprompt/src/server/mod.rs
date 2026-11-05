@@ -1,0 +1,228 @@
+//! The `systemprompt` MCP server: struct construction and rmcp `ServerHandler`
+//! surface (info, tool listing, call dispatch, artifact-viewer resources).
+//!
+//! Per-call logic (RBAC, auditing, CLI-to-artifact conversion) lives in
+//! the `tool` submodule.
+
+mod overflow;
+#[doc(hidden)]
+pub mod tool;
+
+use crate::tools;
+use rmcp::model::{
+    CallToolRequestParams, CallToolResponse, Icon, Implementation, InitializeRequestParams,
+    InitializeResult, ListResourceTemplatesResult, ListResourcesResult, ListToolsResult,
+    PaginatedRequestParams, ProtocolVersion, ReadResourceRequestParams, ReadResourceResponse,
+    ServerCapabilities, ServerConfig,
+};
+use rmcp::service::{MaybeSendFuture, RequestContext, RoleServer};
+use rmcp::{ErrorData as McpError, ServerHandler};
+use std::future::Future;
+use std::sync::Arc;
+use systemprompt::database::DbPool;
+use systemprompt::identifiers::McpServerId;
+use systemprompt::mcp::repository::ToolUsageRepository;
+use systemprompt::mcp::{
+    ArtifactIngest, ArtifactViewerConfig, McpArtifactRepository, McpToolExecutor, WEBSITE_URL,
+    build_artifact_viewer_resource, build_extension_capabilities,
+    build_resource_template_list_result, build_tool_list_result, parse_artifact_resource_uri,
+    read_artifact_resource, read_artifact_viewer_resource,
+};
+use systemprompt::security::authz::SharedAuthzHook;
+use systemprompt_mcp_shared::record_mcp_access;
+
+use systemprompt::mcp::client_profile_from_peer;
+use tool::{authenticate_tool_request, dispatch_tool};
+
+#[derive(Clone, Debug)]
+pub struct SystempromptServer {
+    service_id: McpServerId,
+    db_pool: DbPool,
+    executor: McpToolExecutor,
+    authz_hook: SharedAuthzHook,
+    artifact_ingest: Arc<ArtifactIngest>,
+}
+
+impl SystempromptServer {
+    pub fn new(
+        db_pool: DbPool,
+        service_id: McpServerId,
+        authz_hook: SharedAuthzHook,
+        artifact_ingest: Arc<ArtifactIngest>,
+    ) -> Self {
+        let tool_usage_repo = Arc::new(ToolUsageRepository::new(&db_pool));
+        let executor = McpToolExecutor::new(
+            tool_usage_repo,
+            Arc::new(systemprompt::ai::repository::AiRequestRepository::new(
+                &db_pool,
+            )),
+            Arc::clone(&artifact_ingest),
+            service_id.clone(),
+        );
+
+        Self {
+            service_id,
+            db_pool,
+            executor,
+            authz_hook,
+            artifact_ingest,
+        }
+    }
+}
+
+impl ServerHandler for SystempromptServer {
+    fn get_info(&self) -> ServerConfig {
+        ServerConfig::new(
+            ServerCapabilities::builder()
+                .enable_tools()
+                .enable_resources()
+                .enable_extensions_with(build_extension_capabilities())
+                .build(),
+        )
+        // Why: MCP Apps (SEP-1865) is a 2026-era extension, so a server that
+        // negotiates 2025-06-18 never runs the UI handshake — ClientProfile
+        // reports no UI support, core skips the renderer entirely, and every
+        // tool returns text with no embedded artifact and no error. The
+        // dashboards were invisible for exactly that reason. Core's own client
+        // and every server in the reference instance pin this version.
+        .with_protocol_version(ProtocolVersion::V_2026_07_28)
+        .with_server_info(
+            Implementation::new(
+                format!("SystemPrompt ({})", self.service_id),
+                env!("CARGO_PKG_VERSION"),
+            )
+            .with_title("SystemPrompt CLI")
+            .with_icons(vec![
+                Icon::new(format!("{WEBSITE_URL}/files/images/favicon-32x32.png"))
+                    .with_mime_type("image/png")
+                    .with_sizes(vec!["32x32".to_owned()]),
+                Icon::new(format!("{WEBSITE_URL}/files/images/favicon-96x96.png"))
+                    .with_mime_type("image/png")
+                    .with_sizes(vec!["96x96".to_owned()]),
+            ])
+            .with_website_url(WEBSITE_URL),
+        )
+        .with_instructions(format!(
+            "Admin control plane for this platform. Typed tools first: user_activity (per person: \
+             conversations, active days, skills, titles), conversation_list (one row per \
+             conversation), usage_by_user (spend per user), request_log (requests by user/window, cursor-paged), \
+             conversation_audit (one request's transcript, paged and bounded), users (roster), \
+             admin_report (dashboard). The 'systemprompt' tool runs any other CLI command: \
+             'core skills list', 'core skills show <id>', 'admin users role promote <id>'. \
+             Never pass --json or --export. Full documentation: {WEBSITE_URL}/docs"
+        ))
+    }
+
+    fn initialize(
+        &self,
+        _request: InitializeRequestParams,
+        _ctx: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<InitializeResult, McpError>> + MaybeSendFuture + '_ {
+        tracing::info!("systemprompt.io MCP server initialized");
+        std::future::ready(Ok(self.get_info()))
+    }
+
+    fn list_tools(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _ctx: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<ListToolsResult, McpError>> + MaybeSendFuture + '_ {
+        let tool_list = tools::list_tools();
+        std::future::ready(Ok(build_tool_list_result(tool_list)))
+    }
+
+    fn list_resource_templates(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _ctx: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<ListResourceTemplatesResult, McpError>> + MaybeSendFuture + '_
+    {
+        std::future::ready(Ok(build_resource_template_list_result()))
+    }
+
+    async fn call_tool(
+        &self,
+        request: CallToolRequestParams,
+        ctx: RequestContext<RoleServer>,
+    ) -> Result<CallToolResponse, McpError> {
+        let tool_name = request.name.to_string();
+        let server_name = self.service_id.to_string();
+
+        let (request_context, auth_token) = authenticate_tool_request(
+            &self.db_pool,
+            &tool_name,
+            self.service_id.as_str(),
+            &ctx,
+            &self.authz_hook,
+        )
+        .await?;
+
+        record_mcp_access(
+            &self.db_pool,
+            request_context.user_id(),
+            &server_name,
+            &tool_name,
+            "used",
+        )
+        .await;
+
+        let client = client_profile_from_peer(&ctx);
+        let cli = crate::cli::CliLocation::from_profile()?;
+        dispatch_tool(
+            &tool::Dispatch {
+                service_id: self.service_id.as_str(),
+                db_pool: &self.db_pool,
+                executor: &self.executor,
+                request: &request,
+                request_context: &request_context,
+                client: &client,
+                cli: &cli,
+                ingest: &self.artifact_ingest,
+            },
+            &tool_name,
+            &auth_token,
+        )
+        .await
+        .map(Into::into)
+    }
+
+    fn list_resources(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _ctx: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<ListResourcesResult, McpError>> + MaybeSendFuture + '_ {
+        std::future::ready(Ok(build_artifact_viewer_resource(&ArtifactViewerConfig {
+            server_name: &self.service_id,
+            title: "systemprompt.io Artifact Viewer",
+            description: "Interactive UI viewer for systemprompt.io artifacts. Receives the tool \
+                          result via the MCP Apps ui/notifications/tool-result protocol and mounts \
+                          the server-rendered artifact HTML it carries.",
+            template: &crate::reports::admin_artifact_shell(),
+            icons: Some(vec![
+                Icon::new(format!("{WEBSITE_URL}/files/images/favicon-32x32.png"))
+                    .with_mime_type("image/png")
+                    .with_sizes(vec!["32x32".to_owned()]),
+            ]),
+        })))
+    }
+
+    async fn read_resource(
+        &self,
+        request: ReadResourceRequestParams,
+        _ctx: RequestContext<RoleServer>,
+    ) -> Result<ReadResourceResponse, McpError> {
+        if parse_artifact_resource_uri(&request.uri).is_some() {
+            let repo = McpArtifactRepository::new(&self.db_pool);
+            return read_artifact_resource(&request, &self.service_id, &repo)
+                .await
+                .map(Into::into);
+        }
+
+        read_artifact_viewer_resource(
+            &request,
+            &self.service_id,
+            &crate::reports::admin_artifact_shell(),
+        )
+        .map(Into::into)
+    }
+}

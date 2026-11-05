@@ -1,0 +1,119 @@
+
+
+@layer components {
+
+/* The open record sits on an inset branch; only the record is selected. The
+   ancestor link is emboldened but carries no background and no bar. */
+.sp-admin-sidebar nav a.is-ancestor {
+    background: transparent;
+    color: var(--sp-sidebar-text-hover);
+    font-weight: 600;
+}
+
+.sp-admin-sidebar nav a.is-ancestor:hover {
+    background: var(--sp-sidebar-hover-bg);
+}
+
+.sp-admin-sidebar nav a.is-ancestor .sp-icon { opacity: 1; }
+
+/* The branch hangs off the group rail: a horizontal tick runs from the rail
+   (20px) to the row (40px), accent-coloured because the open record is the
+   active page. */
+.sp-nav-branch {
+    position: relative;
+    margin: 0 var(--sp-space-2) var(--sp-space-1) var(--sp-space-10);
+    min-width: 0;
+}
+
+.sp-nav-branch::before {
+    content: '';
+    position: absolute;
+    left: calc(-1 * var(--sp-space-5));
+    top: 50%;
+    width: var(--sp-space-4);
+    height: 1px;
+    background: var(--sp-accent);
+}
+
+.sp-admin-sidebar nav a.sp-nav-child {
+    margin: 0;
+    min-height: 2rem;
+    padding: var(--sp-space-1) var(--sp-space-2);
+}
+
+.sp-admin-sidebar nav a.sp-nav-child.is-active::before {
+    content: none;
+}
+
+.sp-nav-child__text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sp-nav-group--account,
+.sp-nav-group--developer {
+    margin-top: var(--sp-space-4);
+    border-top: 1px solid var(--sp-sidebar-border);
+    padding-top: var(--sp-space-2);
+}
+
+.sp-nav-external {
+    margin-left: auto;
+    font-size: var(--sp-text-xs);
+    color: var(--sp-text-tertiary);
+}
+}
+
+@layer responsive {
+
+@media (max-width: 768px) {
+    .sp-topbar__nav-toggle {
+        display: flex;
+    }
+    .sp-sidebar-close-btn {
+        display: flex;
+    }
+    .sp-admin-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 280px;
+        height: 100vh;
+        z-index: var(--sp-z-sidebar-drawer);
+        transform: translateX(-100%);
+        transition: transform var(--sp-duration-slow) var(--sp-ease-out);
+        box-shadow: none;
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+    .sp-admin-sidebar.is-open {
+        transform: translateX(0);
+        box-shadow: var(--sp-shadow-xl);
+    }
+    .sp-admin-sidebar nav a,
+    .sp-admin-sidebar nav a.sp-nav-child {
+        min-height: 2.75rem;
+        padding: var(--sp-space-2);
+    }
+}
+
+@media (max-width: 768px) and (prefers-reduced-motion: reduce) {
+    .sp-admin-sidebar {
+        transition: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .sp-admin-sidebar {
+        width: 100vw;
+    }
+}
+
+@media (hover: none) {
+    .sp-admin-sidebar nav a:not(.is-active):hover {
+        background: transparent;
+        color: var(--sp-text-secondary);
+    }
+}
+}

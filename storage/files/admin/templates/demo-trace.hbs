@@ -1,0 +1,76 @@
+{{#> layout title=title page=page}}
+    {{#*inline "content"}}
+    {{> components/breadcrumbs crumbs=breadcrumbs}}
+    {{#> components/page-header title=title subtitle="Every gate one agent session passed through, in order. A blocked prompt has no model call after it; a blocked tool call has no tool fire. Select any row for its chain of custody."}}
+        {{#*inline "header_actions"}}
+        {{#if has_rows}}<a class="sp-btn sp-btn--sm sp-btn--outline" href="{{session_detail_url}}">Open full session</a>{{/if}}
+        <a class="sp-btn sp-btn--sm sp-btn--outline" href="/admin/governance/decisions">Decisions</a>
+        {{/inline}}
+        {{#*inline "header_meta"}}
+        {{#if has_rows}}<span>Session <code class="sp-code-inline">{{session_id}}</code></span><span>{{turn_count}} turns</span>{{/if}}
+        {{/inline}}
+    {{/components/page-header}}
+
+    <section class="sp-kpi-grid" aria-label="Session outcome">
+        {{#each kpis}}
+        {{> components/kpi label=this.label value=this.value note=this.note tone=this.tone}}
+        {{/each}}
+    </section>
+
+    {{#if has_sessions}}
+    <form class="sp-toolbar" method="get" action="{{base_url}}" role="search" aria-label="Choose a session" data-demo-trace="form">
+        <span class="sp-toolbar__count">{{session_count}} sessions</span>
+        <div class="sp-toolbar__field">
+            <label class="sp-toolbar__field-label" for="demo-trace-session">Agent session</label>
+            <select class="sp-select sp-p-demo-trace__select" id="demo-trace-session" name="session" data-demo-trace="session">
+            {{#each sessions}}<option value="{{session_id}}"{{#if is_active}} selected{{/if}}>{{option_label}}</option>{{/each}}
+            </select>
+        </div>
+        <div class="sp-toolbar__actions">
+            <button type="submit" class="sp-btn sp-btn--sm sp-btn--secondary">Show</button>
+        </div>
+    </form>
+    {{/if}}
+
+    {{#if has_rows}}
+    {{#each turns}}
+    {{#> components/section title=heading count=row_count note=summary}}{{/components/section}}
+    {{#> components/table caption=heading modifier="sp-p-demo-trace__table"}}
+        <thead><tr>
+            <th scope="col" class="sp-col-date">Time</th>
+            <th scope="col" class="sp-col-status">Stage</th>
+            <th scope="col">Subject</th>
+            <th scope="col" class="sp-col-status">Outcome</th>
+            <th scope="col">Policy chain</th>
+            <th scope="col">Detail</th>
+        </tr></thead>
+        <tbody>
+        {{#each rows}}
+        <tr class="sp-table__row--click{{#if is_deny}} sp-p-demo-trace__row--deny{{/if}}" data-chain-id="{{chain_id}}" tabindex="0" title="Open chain of custody for {{subject}}">
+            <td class="sp-table__cell--date" title="{{at_full}}">{{at}} <span class="sp-u-text-muted-inline">{{offset}}</span></td>
+            <td>{{> components/badge tone="info" text=kind_label}}</td>
+            <td class="sp-u-mono sp-u-truncate" title="{{subject}}">{{subject}}</td>
+            <td>{{> components/badge tone=outcome_tone text=outcome_label}}</td>
+            <td class="sp-p-demo-trace__chain">
+                {{#if has_stages}}
+                {{#each stages}}<span class="sp-badge sp-badge--sm sp-badge--nodot sp-badge--{{tone}}" title="{{policy}}: {{detail}}">{{policy}}</span>{{/each}}
+                {{else if has_policy}}
+                <code class="sp-code-inline">{{policy}}</code>
+                {{else}}
+                <span class="sp-u-text-muted">—</span>
+                {{/if}}
+            </td>
+            <td class="sp-p-demo-trace__detail" title="{{detail}}">{{#if has_detail}}{{detail}}{{else}}<span class="sp-u-text-muted">—</span>{{/if}}</td>
+        </tr>
+        {{/each}}
+        </tbody>
+    {{/components/table}}
+    {{/each}}
+    {{else}}
+    {{> components/empty-state heading="No governed agent session yet" message="Run examples/pi/setup.sh and examples/pi/new-user.sh, drive Pi, and the trace appears here."}}
+    {{/if}}
+    {{/inline}}
+    {{#*inline "scripts"}}
+    <script data-cfasync="false" type="module" src="/js/pages/admin-demo-trace.js?v={{css_version}}"></script>
+    {{/inline}}
+{{/layout}}

@@ -1,0 +1,173 @@
+//! `/hooks/track` ingestion: the endpoint Claude Code hooks post events to.
+//!
+//! Insertion is deliberately fire-and-forget past the initial row write —
+//! downstream tracking, entity detection and AI analysis are dispatched after
+//! the event is persisted so a slow analysis never stalls the caller's hook.
+
+pub(crate) mod ai_context;
+pub(crate) mod ai_summary;
+pub(crate) mod ai_summary_types;
+mod auth;
+pub(crate) mod commits;
+mod dedup;
+mod description;
+mod entity;
+mod helpers;
+pub(crate) mod loc;
+mod processing;
+pub(crate) mod session_summary;
+
+use crate::error::{AdminError, AdminResult};
+use crate::event_hub::EventHub;
+use crate::repositories::marketplace::webhook;
+use crate::types::webhook::HookEventPayload;
+use auth::extract_and_validate_jwt;
+use axum::Json;
+use axum::extract::{Extension, State};
+use axum::http::{HeaderMap, StatusCode};
+use axum::response::{IntoResponse, Response};
+use sha2::Digest;
+use sqlx::PgPool;
+use std::sync::Arc;
+use systemprompt::ai::AiService;
+use systemprompt::identifiers::{PluginId, SessionId, UserId};
+
+pub(crate) async fn handle_hook_track(
+    Extension(event_hub): Extension<EventHub>,
+    Extension(ai_service): Extension<Option<Arc<AiService>>>,
+    State(pool): State<Arc<PgPool>>,
+    headers: HeaderMap,
+    // JSON: protocol boundary — the third-party hook envelope, parsed into typed
+    // events by `HookEventPayload::from_value` after the raw copy is retained
+    Json(mut raw): Json<serde_json::Value>,
+) -> AdminResult<Response> {
+    let (user_id, plugin_id, jwt_token) = extract_and_validate_jwt(&headers)?;
+    tracing::trace!(payload = %helpers::sanitize_metadata(&raw), "Hook track received payload");
+    if let Some(event_id) = headers
+        .get("x-ingestion-event-id")
+        .and_then(|v| v.to_str().ok())
+        && let Some(object) = raw.as_object_mut()
+    {
+        object
+            .entry("event_id")
+            .or_insert_with(|| serde_json::Value::String(event_id.to_owned()));
+    }
+    let (payload, warnings) = HookEventPayload::from_value(raw);
+    payload
+        .validate_ingestion()
+        .map_err(AdminError::BadRequest)?;
+    payload.delivery_id().map_err(AdminError::BadRequest)?;
+    log_payload_warnings(&payload, &warnings);
+
+    let was_inserted = insert_hook_event(&pool, &user_id, &plugin_id, &payload).await?;
+    if !was_inserted {
+        tracing::trace!(
+            plugin_id = %plugin_id,
+            event_type = payload.event_name(),
+            "Hook event deduplicated"
+        );
+        return Ok(StatusCode::OK.into_response());
+    }
+
+    dispatch_inserted_event(&DispatchContext {
+        pool: &pool,
+        user_id: &user_id,
+        payload: &payload,
+        event_hub: &event_hub,
+        ai_service: ai_service.as_ref(),
+        jwt_token: &jwt_token,
+    })
+    .await;
+    crate::repositories::dashboard::usage_aggregations::ingestion::drain_ingestion_outbox(&pool)
+        .await?;
+    Ok(StatusCode::OK.into_response())
+}
+
+fn log_payload_warnings(payload: &HookEventPayload, warnings: &[String]) {
+    for w in warnings {
+        tracing::debug!(
+            event_type = payload.event_name(),
+            warning = %w,
+            "Hook payload validation warning"
+        );
+    }
+}
+
+struct DispatchContext<'a> {
+    pool: &'a PgPool,
+    user_id: &'a UserId,
+    payload: &'a HookEventPayload,
+    event_hub: &'a EventHub,
+    ai_service: Option<&'a Arc<AiService>>,
+    jwt_token: &'a str,
+}
+
+async fn dispatch_inserted_event(ctx: &DispatchContext<'_>) {
+    let content_bytes = helpers::compute_content_bytes(ctx.payload);
+    let loc_delta = loc::compute_loc_delta(ctx.payload);
+    processing::process_inserted_event(&processing::ProcessInsertedEventParams {
+        pool: ctx.pool,
+        user_id: ctx.user_id,
+        session_id: &SessionId::new(ctx.payload.session_id()),
+        event_type: ctx.payload.event_name(),
+        tool_name: ctx.payload.tool_name(),
+        content_input_bytes: content_bytes.input,
+        content_output_bytes: content_bytes.output,
+        loc_added: loc_delta.added,
+        loc_removed: loc_delta.removed,
+        payload: ctx.payload,
+        event_hub: ctx.event_hub,
+        ai_service: ctx.ai_service,
+        jwt_token: ctx.jwt_token,
+    })
+    .await;
+}
+
+async fn insert_hook_event(
+    pool: &PgPool,
+    user_id: &UserId,
+    plugin_id: &PluginId,
+    payload: &HookEventPayload,
+) -> AdminResult<bool> {
+    let session_id = SessionId::new(payload.session_id());
+    let description = description::generate_description(payload);
+    let prompt_preview = helpers::generate_prompt_preview(payload);
+    let dedup_key =
+        dedup::compute_dedup_key(user_id, &session_id, payload).map_err(AdminError::BadRequest)?;
+    let content_bytes = helpers::compute_content_bytes(payload);
+    let loc_delta = loc::compute_loc_delta(payload);
+    let mut sanitized_metadata = helpers::sanitize_metadata(&payload.raw);
+    let mut content = payload.raw.clone();
+    if let Some(object) = content.as_object_mut() {
+        object.remove("event_id");
+    }
+    let digest = hex::encode(sha2::Sha256::digest(
+        serde_json::to_vec(&content).map_err(AdminError::internal)?,
+    ));
+    if let Some(object) = sanitized_metadata.as_object_mut() {
+        // JSON: fixed-shape metadata added at the inbound hook protocol boundary.
+        object.insert(
+            "_ingestion_digest".to_owned(),
+            serde_json::Value::String(digest),
+        );
+    }
+
+    let usage_params = webhook::UsageEventParams {
+        plugin_id,
+        user_id,
+        session_id: &session_id,
+        event_type: payload.event_name(),
+        tool_name: payload.tool_name(),
+        metadata: &sanitized_metadata,
+        description: Some(&*description),
+        prompt_preview: prompt_preview.as_deref(),
+        cwd: payload.cwd(),
+        dedup_key: &dedup_key,
+        content_input_bytes: content_bytes.input,
+        content_output_bytes: content_bytes.output,
+        loc_added: loc_delta.added,
+        loc_removed: loc_delta.removed,
+    };
+
+    webhook::insert_plugin_usage_event(pool, &usage_params).await
+}

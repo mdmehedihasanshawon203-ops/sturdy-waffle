@@ -1,0 +1,55 @@
+{{#> layout title=title page=page}}
+    {{#*inline "content"}}
+    {{> components/breadcrumbs crumbs=breadcrumbs}}
+    {{#> components/page-header title=name subtitle=description}}
+        {{#*inline "header_meta"}}
+            {{#if enabled}}{{> components/badge tone="ok" text="enabled"}}{{else}}{{> components/badge tone="muted" text="disabled"}}{{/if}}
+            <span>v{{version}} · {{visibility}}</span>
+            <span class="sp-u-mono">{{source_path}}</span>
+        {{/inline}}
+        {{#*inline "header_actions"}}
+            <a class="sp-btn sp-btn--sm sp-btn--outline" href="#access">Access</a>
+            <a class="sp-btn sp-btn--sm sp-btn--outline" href="/admin/marketplaces">All marketplaces</a>
+        {{/inline}}
+    {{/components/page-header}}
+
+    <section class="sp-kpi-grid" aria-label="Marketplace totals">
+        {{> components/kpi label="Plugins" value=plugins_count note="declared members"}}
+        {{> components/kpi label="Skills" value=skills_count note="carried by those plugins"}}
+        {{> components/kpi label="MCP servers" value=mcp_count note="declared members"}}
+    </section>
+
+    {{> components/entity-access panel=access}}
+
+    <div class="sp-catalog-detail-grid">
+        <section class="sp-catalog-rel-section" aria-label="Plugins">
+            <h2 class="sp-catalog-rel-section__title">Plugins <span class="sp-count-pill">{{plugins_count}}</span></h2>
+            {{#if plugins}}
+            <p class="sp-mkt-card__chips">{{#each plugins}}<a class="sp-chip sp-chip--tag" href="{{url}}">{{name}}</a>{{/each}}</p>
+            {{else}}
+            {{> components/empty-state message="This marketplace ships no plugins."}}
+            {{/if}}
+        </section>
+        <section class="sp-catalog-rel-section" aria-label="Skills">
+            <h2 class="sp-catalog-rel-section__title">Skills <span class="sp-count-pill">{{skills_count}}</span></h2>
+            {{#if skills}}
+            <p class="sp-mkt-card__chips">{{#each skills}}<a class="sp-chip sp-chip--tag" href="{{url}}">{{name}}</a>{{/each}}</p>
+            {{else}}
+            {{> components/empty-state message="No skills reach this marketplace."}}
+            {{/if}}
+        </section>
+        <section class="sp-catalog-rel-section" aria-label="MCP servers">
+            <h2 class="sp-catalog-rel-section__title">MCP servers <span class="sp-count-pill">{{mcp_count}}</span></h2>
+            {{#if mcp_servers}}
+            <p class="sp-mkt-card__chips">{{#each mcp_servers}}<a class="sp-chip sp-chip--tag" href="{{url}}">{{name}}</a>{{/each}}</p>
+            {{else}}
+            {{> components/empty-state message="This marketplace ships no MCP servers."}}
+            {{/if}}
+        </section>
+    </div>
+    {{/inline}}
+    {{#*inline "scripts"}}
+    {{> components/access-reason-dialog}}
+    <script type="module" src="/js/pages/admin-entity-access.js?v={{css_version}}"></script>
+    {{/inline}}
+{{/layout}}

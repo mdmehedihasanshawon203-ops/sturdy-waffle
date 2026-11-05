@@ -1,0 +1,64 @@
+{{#> layout title=title page=page}}
+    {{#*inline "content"}}
+    {{> components/breadcrumbs crumbs=breadcrumbs}}
+
+    {{#> components/page-header title=title subtitle="Create a demo account and hand its owner a one-time registration link. They open it to bind a passkey, which becomes their sign-in."}}
+        {{#*inline "header_actions"}}
+        <a class="sp-btn sp-btn--sm sp-btn--outline" href="/admin/users">Users</a>
+        {{/inline}}
+    {{/components/page-header}}
+
+    {{> components/notice tone="warn" title="Demo environment — manual provisioning"
+        message="In production, accounts arrive from your identity provider through SAML 2.0, OpenID Connect or SCIM directory sync, and this page would not exist."}}
+
+    {{> components/section title="Create demo user" note="The link expires in 15 minutes and can be used once. The recipient is prompted to create a passkey on their device."}}
+    <div class="sp-card">
+        <div class="sp-card__body">
+            <form id="demo-register-form" class="sp-auth-inline-form">
+                <div class="sp-form-group">
+                    <label for="demo-name">Full name</label>
+                    <input type="text" id="demo-name" class="sp-field-input" placeholder="Jane Smith" required autocomplete="off">
+                </div>
+                <div class="sp-form-group">
+                    <label for="demo-email">Email</label>
+                    <input type="email" id="demo-email" class="sp-field-input" placeholder="jane@example.com" required autocomplete="off">
+                </div>
+                <div class="sp-form-group">
+                    <label for="demo-role">Role</label>
+                    <select id="demo-role" class="sp-select">
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="sp-form-actions">
+                    <button type="submit" class="sp-btn sp-btn--sm sp-btn--primary" id="demo-submit-btn">Create user and generate link</button>
+                </div>
+            </form>
+
+            <div id="demo-error" class="sp-login-error sp-u-mt-4" role="alert" hidden></div>
+
+            <div id="demo-result" class="sp-u-mt-4" hidden>
+                <p class="sp-u-text-sm sp-u-text-semibold">User created. Share this one-time registration link:</p>
+                <div class="sp-auth-link-row">
+                    <input type="text" id="demo-link" class="sp-field-input sp-u-mono" readonly>
+                    <button type="button" id="demo-copy-btn" class="sp-btn sp-btn--sm sp-btn--secondary">Copy link</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{> components/section title="How authentication works" note="WebAuthn passkeys: the same phishing-resistant standard Apple, Google and Microsoft ship."}}
+    {{#> components/table caption="Passkey registration, login and recovery, step by step"}}
+        <thead><tr><th scope="col">Step</th><th scope="col">What happens</th></tr></thead>
+        <tbody>
+            <tr><td>Registration</td><td>The browser generates a key pair bound to this domain. The private key stays on the device or in a password manager; only the public key is stored here.</td></tr>
+            <tr><td>Login</td><td>The server sends a random challenge, the device signs it, and the signature is checked against the stored public key inside an OAuth 2.0 PKCE flow that issues a short-lived session token.</td></tr>
+            <tr><td>Recovery</td><td>If a device is lost, an administrator generates a new registration link here. The time-limited, single-use token bootstraps a passkey on the new device.</td></tr>
+            <tr><td>In production</td><td>SAML 2.0 or OpenID Connect hands sign-in to your IdP, SCIM provisions and deprovisions accounts from the directory, JIT provisioning derives roles from group membership, and passkeys add a device-binding factor on top.</td></tr>
+        </tbody>
+    {{/components/table}}
+    {{/inline}}
+    {{#*inline "scripts"}}
+    <script data-cfasync="false" type="module" src="/js/pages/admin-demo-register.js?v={{css_version}}"></script>
+    {{/inline}}
+{{/layout}}

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>{{branding.domain}} Admin - Sign In</title>
+    <link rel="stylesheet" href="/css/core/fonts.css?v={{css_version}}">
+    <link rel="stylesheet" href="/css/admin-bundle.css?v={{css_version}}">
+</head>
+<body class="sp-auth-light">
+    <main class="sp-auth-page">
+        <div class="sp-auth-info">
+            <div>
+                <div class="sp-auth-badge">Demo Environment</div>
+                <h2 class="sp-section__title">Sign in</h2>
+                <p>
+                    This is an open demo environment. Sign in with a passkey you created during registration.
+                    WebAuthn passkeys are the default authentication mechanism &mdash; the library itself can act
+                    as the identity provider. Optionally, enterprise SSO providers can be integrated during implementation.
+                    <strong>Emails are not enabled in this demo environment.</strong>
+                </p>
+
+                <details class="sp-auth-more">
+                <summary>How passkey login works, recovery, and enterprise options</summary>
+                <hr class="sp-auth-divider">
+
+                <h2 class="sp-section__title">How passkey login works</h2>
+                <p>Passkey authentication uses public-key cryptography. No passwords are transmitted or stored.</p>
+                <div class="sp-auth-flow-steps">
+                    <div class="sp-auth-flow-step"><span class="sp-step-num">1</span><span>Enter your email address</span></div>
+                    <div class="sp-auth-flow-step"><span class="sp-step-num">2</span><span>The server sends a random cryptographic challenge</span></div>
+                    <div class="sp-auth-flow-step"><span class="sp-step-num">3</span><span>Your device signs the challenge with the private key stored during registration (biometric or PIN confirmation)</span></div>
+                    <div class="sp-auth-flow-step"><span class="sp-step-num">4</span><span>The server verifies the signature against the stored public key and issues an OAuth 2.0 session token via PKCE</span></div>
+                </div>
+
+                <hr class="sp-auth-divider">
+
+                <h2 class="sp-section__title">Magic links (recovery)</h2>
+                <p>
+                    If you have lost access to your passkey (new device, cleared browser data), use "Don't have a passkey?"
+                    to receive a time-limited, single-use link that lets you create a new passkey on this device.
+                    <strong>Note:</strong> Emails are not enabled in this demo, so magic link recovery is not available here.
+                </p>
+
+                <hr class="sp-auth-divider">
+
+                <h2 class="sp-section__title">Enterprise integration options</h2>
+                <p>The library can act as the identity provider using WebAuthn passkeys, or optionally integrate with enterprise identity infrastructure during implementation:</p>
+
+                <h3>SAML 2.0 / OpenID Connect</h3>
+                <p>Optionally redirect authentication to your IdP (Okta, Azure AD, Google Workspace). After authentication, the IdP sends a signed assertion with the user's identity, roles, and group memberships. The platform issues a local session.</p>
+
+                <h3>SCIM directory sync</h3>
+                <p>User accounts can be created and deactivated automatically from your corporate directory. No manual provisioning required.</p>
+
+                <h3>MCP server authentication</h3>
+                <p>
+                    After login, users access MCP (Model Context Protocol) servers that extend Claude's capabilities.
+                    Each MCP server authenticates via API keys stored in encrypted per-user secrets and exposes
+                    tool endpoints for databases, APIs, and internal services &mdash; governed by per-user
+                    permissions and audit logging.
+                </p>
+                </details>
+            </div>
+        </div>
+
+        <div class="sp-auth-form-col">
+            <div class="sp-login-container sp-login-container--bare">
+                <div class="sp-card">
+                    <div class="sp-card__body">
+                    <div class="sp-login-logo">
+                        <img src="/files/images/logo.svg" alt="{{branding.domain}}" height="40" class="sp-logo-light">
+                        <img src="/files/images/logo-white.svg" alt="{{branding.domain}}" height="40" class="sp-logo-dark">
+                    </div>
+                    <p class="sp-login-subtitle">Sign in with your passkey</p>
+
+                    <div id="error" class="sp-login-error" role="alert" aria-live="polite" hidden></div>
+
+                    <div id="login-form" hidden>
+                        <div class="sp-form-group">
+                            <label for="login-email">Email</label>
+                            <input class="sp-field-input" type="email" id="login-email" placeholder="you@company.com" required autocomplete="email" aria-describedby="error">
+                        </div>
+                        <div class="sp-form-actions">
+                            <button type="button" id="sign-in-btn" class="sp-btn sp-btn--primary sp-u-w-full">Sign in with passkey</button>
+                        </div>
+                        <p class="sp-login-switch">
+                            Lost your passkey? Email recovery is disabled in this demo, so
+                            <a href="/admin/register">register a new account</a> instead.
+                        </p>
+                        {{#if sso_enabled}}
+                        <div class="sp-form-actions">
+                            <a id="sso-btn" class="sp-btn sp-btn--outline sp-u-w-full" href="/admin/auth/adfs/start{{#if redirect_encoded}}?redirect={{redirect_encoded}}{{/if}}">Sign in with single sign-on</a>
+                        </div>
+                        {{/if}}
+                        {{#if dev_login_enabled}}
+                        <p class="sp-login-switch">Development instance: run <code>just dev-login &lt;user&gt;</code> and open the printed link.</p>
+                        {{/if}}
+                    </div>
+
+                    <div id="magic-link-form" hidden>
+                        <p class="sp-login-switch">
+                            Enter your email and we'll send you a link to create a passkey on this device.
+                        </p>
+                        <div class="sp-form-group">
+                            <label for="magic-email">Email</label>
+                            <input class="sp-field-input" type="email" id="magic-email" placeholder="you@company.com" required autocomplete="email">
+                        </div>
+                        <div class="sp-form-actions">
+                            <button type="button" id="send-magic-btn" class="sp-btn sp-btn--primary sp-u-w-full">Send magic link</button>
+                        </div>
+                        <p class="sp-login-switch">
+                            <a href="#" id="back-to-passkey">Back to passkey sign in</a>
+                        </p>
+                    </div>
+
+                    <div id="magic-link-sent" class="sp-auth-sent" hidden>
+                        <p class="sp-auth-sent__title">Check your email</p>
+                        <p class="sp-login-switch">
+                            If an account exists for that email, we've sent a link to create a passkey on this device.
+                        </p>
+                        <p class="sp-login-switch">
+                            <a href="/admin/login">Back to sign in</a>
+                        </p>
+                    </div>
+
+                    <div id="loading" class="sp-login-loading" hidden aria-live="polite">
+                        <div class="sp-login-spinner" role="status" aria-label="Loading"></div>
+                        <p id="loading-text">Processing...</p>
+                    </div>
+
+                    <div id="retry" class="sp-login-retry" hidden>
+                        <a href="/admin/login">Try again</a>
+                    </div>
+
+                    <p class="sp-login-switch">
+                        Don't have an account? <a href="/admin/register">Register</a>
+                    </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script data-cfasync="false" src="/js/services/webauthn-login.js?v={{css_version}}" type="module"></script>
+    <script data-cfasync="false" src="/js/pages/admin-login.js?v={{css_version}}" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,139 @@
+{{#> layout title=title page=page}}
+    {{#*inline "content"}}
+    <a href="{{back_url}}" class="sp-back-link">&larr; {{back_label}}</a>
+
+    {{> components/breadcrumbs crumbs=breadcrumbs}}
+    {{#> components/page-header title=title}}
+      {{#*inline "header_actions"}}{{> components/export-button export}}{{/inline}}
+      {{#*inline "header_meta"}}
+        <span class="sp-conversation__facts">
+          {{#if header.user_url}}
+          <a href="{{header.user_url}}">{{#if header.display_name}}{{header.display_name}}{{else}}{{header.user_id}}{{/if}}</a>
+          {{/if}}
+          {{#if header.timeline}}
+          <span class="sp-conversation__facts-sep" aria-hidden="true">·</span>
+          <span title="{{header.first_at}} → {{header.last_at}}">{{header.timeline}}</span>
+          {{/if}}
+          {{#each stats.models}}
+          <span class="sp-badge sp-badge--muted sp-badge--nodot sp-u-mono">{{this}}</span>
+          {{/each}}
+          {{#if status_badge}}
+          {{> components/badge tone=status_badge.tone text=status_badge.text}}
+          {{/if}}
+        </span>
+      {{/inline}}
+    {{/components/page-header}}
+
+    <details class="sp-conversation__ids">
+      <summary class="sp-conversation__ids-summary">Identifiers</summary>
+      <dl class="sp-kv-list">
+        <div class="sp-kv-row">
+          <dt>Context</dt>
+          <dd><code class="sp-code-inline">{{header.context_id}}</code></dd>
+        </div>
+        {{#if header.session_id}}
+        <div class="sp-kv-row">
+          <dt>Gateway session</dt>
+          <dd><a href="{{header.session_url}}"><code class="sp-code-inline">{{header.session_id}}</code></a></dd>
+        </div>
+        {{/if}}
+        {{#if header.client_session_id}}
+        <div class="sp-kv-row">
+          <dt>Claude Code session</dt>
+          <dd><code class="sp-code-inline">{{header.client_session_id}}</code></dd>
+        </div>
+        <div class="sp-kv-row">
+          <dt>Hooks session</dt>
+          <dd><a href="{{header.hooks_session_url}}">Open session</a></dd>
+        </div>
+        {{/if}}
+      </dl>
+    </details>
+
+    <section class="sp-kpi-grid" aria-label="Conversation stats">
+      {{!-- "Turns" counts the human prompts the transcript renders; the
+            request total is its own tile rather than a second, larger number
+            also called Turns. --}}
+      {{> components/kpi label="Turns" value=conversation.turn_count}}
+      {{> components/kpi label="Requests" value=stats.turn_count}}
+      {{> components/kpi label="Tool calls" value=stats.tool_call_count}}
+      {{> components/kpi label="Tokens" value=stats.tokens_display note=stats.tokens_note}}
+      {{> components/kpi label="Cost" value=stats.cost_display}}
+      {{#if stats.error_count}}
+      {{> components/kpi label="Errors" value=stats.error_count tone="err"}}
+      {{else}}
+      {{> components/kpi label="Errors" value=stats.error_count}}
+      {{/if}}
+      {{> components/kpi label="Side calls" value=stats.side_call_count note=stats.side_call_cost_display href="#side-calls"}}
+    </section>
+
+    {{> components/tabs tabs=tabs nav_label="Conversation views"}}
+
+    {{#if show_conversation}}
+    {{> components/conversation conversation}}
+    {{/if}}
+
+    {{#if show_requests}}
+    <section aria-labelledby="requests-title">
+      {{> components/section title="Requests in this conversation" count=request_count
+          note="Every gateway request the context carried, oldest first. Side calls are probes and utility calls that never entered the transcript."}}
+      {{#if has_requests}}
+      {{#> components/table caption="Requests in this conversation"}}
+        <thead><tr>
+          <th scope="col">Request</th><th scope="col">Created</th><th scope="col" class="sp-col-status">Kind</th>
+          <th scope="col" class="sp-table__cell--num">Messages</th><th scope="col">Trace</th><th scope="col">Model</th>
+          <th scope="col">Status</th><th scope="col" class="sp-table__cell--num">Latency</th><th scope="col" class="sp-table__cell--num">Cost</th>
+        </tr></thead>
+        <tbody>
+        {{#each requests}}
+          <tr>
+            <td><a href="{{this.request_url}}" class="sp-code-inline" title="{{this.id}}">{{this.id_short}}</a></td>
+            <td class="sp-u-num">{{this.created_at_local}}</td>
+            <td class="sp-col-status">{{> components/badge tone=this.kind_tone text=this.kind}}</td>
+            <td class="sp-table__cell--num">{{this.message_count}}</td>
+            <td>{{#if this.trace_url}}<a href="{{this.trace_url}}" class="sp-code-inline">{{this.trace_id_short}}</a>{{else}}—{{/if}}</td>
+            <td class="sp-table__cell--mono">{{this.model}}</td>
+            <td>{{#if this.is_error}}<span class="sp-u-text-danger">{{this.status}}</span>{{else}}{{this.status}}{{/if}}</td>
+            <td class="sp-table__cell--num">{{this.latency_display}}</td>
+            <td class="sp-table__cell--num">{{this.cost_display}}</td>
+          </tr>
+        {{/each}}
+        </tbody>
+      {{/components/table}}
+      {{else}}
+      {{> components/empty-state message="No requests recorded for this conversation."}}
+      {{/if}}
+    </section>
+    {{/if}}
+
+    {{#if show_touched}}
+    <section aria-labelledby="entities-title">
+      {{> components/section title="What this session touched" count=entity_link_count
+          note="Files, tools and repositories the hooks pipeline recorded against this session, busiest first."}}
+      {{#if has_entity_links}}
+      {{#> components/table caption="Entities linked to this session"}}
+        <thead><tr>
+          <th scope="col" class="sp-col-status">Type</th><th scope="col">Entity</th>
+          <th scope="col" class="sp-table__cell--num">Uses</th><th scope="col" class="sp-col-share">Share</th>
+        </tr></thead>
+        <tbody>
+        {{#each entity_links}}
+          <tr>
+            <td class="sp-col-status">{{> components/badge tone="muted" text=this.entity_type}}</td>
+            <td class="sp-u-truncate sp-table__cell--mono" title="{{this.entity_name}}">{{this.entity_name}}</td>
+            <td class="sp-table__cell--num">{{this.usage_count}}</td>
+            <td class="sp-col-share">
+              <span class="sp-p-context-detail__bar" style="--sp-share:{{this.share_pct}}%"></span>
+            </td>
+          </tr>
+        {{/each}}
+        </tbody>
+      {{/components/table}}
+      {{else}}
+      {{> components/empty-state heading="Nothing recorded"
+          message="This conversation has no session, or the hooks pipeline recorded no files, tools or repositories against it."}}
+      {{/if}}
+    </section>
+    {{/if}}
+    {{/inline}}
+{{/layout}}

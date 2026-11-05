@@ -1,0 +1,23 @@
+# ClusterIP Service fronting the systemprompt pods.
+#
+# The selector matches every pod in the Deployment. They are identical — each one
+# serves the API, the MCP servers and the marketplace — so any of them can take
+# any request.
+apiVersion: v1
+kind: Service
+metadata:
+  name: systemprompt-api
+  labels:
+    app.kubernetes.io/name: systemprompt
+    app.kubernetes.io/component: app
+    app.kubernetes.io/part-of: scaled-stack
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: systemprompt
+    app.kubernetes.io/component: app
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

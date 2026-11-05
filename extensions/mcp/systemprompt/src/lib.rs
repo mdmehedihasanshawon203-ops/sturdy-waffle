@@ -1,0 +1,23 @@
+//! MCP server crate for the systemprompt template.
+//!
+//! Implements the `systemprompt` MCP server that ships with the demo plugin.
+//! Tools are defined in [`tools`] and exposed through [`SystempromptServer`];
+//! errors normalise on [`error::SystempromptToolError`]. The `main` binary is a
+//! thin `tokio::main` shell that builds a [`SystempromptServer`] and serves it
+//! over stdio.
+
+#[doc(hidden)]
+pub mod bounds;
+mod cli;
+pub mod error;
+#[doc(hidden)]
+pub mod reports;
+#[doc(hidden)]
+pub mod typed;
+
+#[doc(hidden)]
+pub use cli::{CliError, CliLocation, filter_hallucinated_args};
+pub mod server;
+pub mod tools;
+
+pub use server::SystempromptServer;

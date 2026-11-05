@@ -1,0 +1,68 @@
+{{#> layout title=title page=page}}
+    {{#*inline "content"}}
+    <a href="/admin/history" class="sp-back-link">&larr; My Conversations</a>
+
+    <nav class="sp-breadcrumbs" aria-label="Breadcrumb">
+        <a href="/admin/history">My Conversations</a>
+        <span class="sp-breadcrumbs__sep" aria-hidden="true">›</span>
+        <span aria-current="page">{{title}}</span>
+    </nav>
+    {{#> components/page-header title=title}}
+      {{#*inline "header_actions"}}{{> components/export-button export}}{{/inline}}
+      {{#*inline "header_meta"}}
+        <span class="sp-conversation__facts">
+          {{#if timeline}}<span>{{timeline}}</span>{{/if}}
+          {{#each stats.models}}
+          <span class="sp-badge sp-badge--muted sp-badge--nodot sp-u-mono">{{this}}</span>
+          {{/each}}
+          {{#if status_badge}}
+          {{> components/badge tone=status_badge.tone text=status_badge.text}}
+          {{/if}}
+          {{#if admin_url}}
+          <span class="sp-conversation__facts-sep" aria-hidden="true">·</span>
+          <a href="{{admin_url}}">Open in admin context view</a>
+          {{/if}}
+        </span>
+      {{/inline}}
+    {{/components/page-header}}
+
+    {{!-- A fact strip, not a KPI grid. Six tiles cost a screen-height of
+          vertical space above a transcript that is the whole reason the page
+          exists, and the numbers are all one-line facts. --}}
+    <dl class="sp-conversation-facts" aria-label="Conversation stats">
+      {{!-- "Turns" is the count of human prompts rendered below, so the strip
+            and the transcript can never disagree. What the gateway served is
+            its own fact under its own name. --}}
+      <div class="sp-conversation-facts__item">
+        <dt>Turns</dt><dd>{{formatNumber conversation.turn_count}}</dd>
+      </div>
+      <div class="sp-conversation-facts__item" title="Requests the gateway served for this conversation">
+        <dt>Requests</dt><dd>{{formatNumber stats.turn_count}}</dd>
+      </div>
+      <div class="sp-conversation-facts__item">
+        <dt>Tool calls</dt><dd>{{formatNumber stats.tool_call_count}}</dd>
+      </div>
+      <div class="sp-conversation-facts__item" title="{{stats.tokens_note}}">
+        <dt>Tokens</dt><dd>{{stats.tokens_display}}</dd>
+      </div>
+      <div class="sp-conversation-facts__item">
+        <dt>Cost</dt><dd class="sp-u-mono">{{stats.cost_display}}</dd>
+      </div>
+      {{#if stats.error_count}}
+      <div class="sp-conversation-facts__item sp-conversation-facts__item--err">
+        <dt>Errors</dt><dd>{{formatNumber stats.error_count}}</dd>
+      </div>
+      {{/if}}
+      {{#if stats.side_call_count}}
+      <div class="sp-conversation-facts__item">
+        <dt>Side calls</dt>
+        <dd><a href="#side-calls">{{formatNumber stats.side_call_count}}</a> <span class="sp-u-mono">{{stats.side_call_cost_display}}</span></dd>
+      </div>
+      {{/if}}
+    </dl>
+
+    {{> components/conversation conversation}}
+    {{/inline}}
+    {{#*inline "head_extra"}}{{/inline}}
+    {{#*inline "scripts"}}<script type="module" src="/js/components/sp-transcript.js"></script>{{/inline}}
+{{/layout}}

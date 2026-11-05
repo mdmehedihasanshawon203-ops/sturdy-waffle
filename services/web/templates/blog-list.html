@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  {{{HEAD_ASSETS}}}
+  <title>{{BLOG_NAME}} | {{ORG_NAME}}</title>
+  <meta name="description" content="{{BLOG_DESCRIPTION}}" />
+  <meta name="keywords" content="{{BLOG_KEYWORDS}}" />
+  <link rel="canonical" href="{{BLOG_URL}}" />
+  <link rel="icon" type="image/x-icon" href="{{FAVICON_PATH}}" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-background.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-base.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-post-header.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-social-bar.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-featured-image.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-post-content.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-breadcrumb.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-page-header.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-list-controls.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-cards.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-footer.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-footer-meta.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-references.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-related.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-chat-cta.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-social-content.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-hero.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-homepage.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-ai-badges.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-content-sections.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-content-cards.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-provenance-panel.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-provenance-panel-content.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-provenance-sections.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-provenance-header.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-provenance-details.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-responsive.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/blog-responsive-breakpoints.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/content-cards-base.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/content-cards-categories.css" />
+  <link rel="stylesheet" href="{{CSS_BASE_PATH}}/content-cards-list.css" />
+
+  <meta property="og:title" content="{{BLOG_NAME}} | {{ORG_NAME}}" />
+  <meta property="og:description" content="{{BLOG_DESCRIPTION}}" />
+  <meta property="og:image" content="{{BLOG_IMAGE}}" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="{{BLOG_URL}}" />
+  <meta property="og:site_name" content="{{ORG_NAME}}" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="{{TWITTER_HANDLE}}" />
+  <meta name="twitter:title" content="{{BLOG_NAME}} | {{ORG_NAME}}" />
+  <meta name="twitter:description" content="{{BLOG_DESCRIPTION}}" />
+  <meta name="twitter:image" content="{{BLOG_IMAGE}}" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    "name": "{{BLOG_NAME}}",
+    "description": "{{BLOG_DESCRIPTION}}",
+    "url": "{{BLOG_URL}}",
+    "image": "{{BLOG_IMAGE}}",
+    "publisher": {
+      "@type": "Organization",
+      "name": "{{ORG_NAME}}",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "{{LOGO_PATH}}"
+      }
+    },
+    "inLanguage": "{{BLOG_LANGUAGE}}"
+  }
+  </script>
+</head>
+<body>
+  <div class="blog-background"></div>
+  <div class="blog-shape-left"></div>
+
+  {{{HEADER}}}
+
+  <main class="blog-list">
+    <header class="content-list-header">
+      <div class="content-list-header__icon content-list-header__icon--blog"></div>
+      <h1>{{BLOG_NAME}}</h1>
+      <p class="subtitle">{{BLOG_DESCRIPTION}}</p>
+    </header>
+
+    <div class="blog-controls">
+      <div class="blog-filters">
+        <button type="button" class="blog-filter-btn active" data-filter="all">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+          </svg>
+          All
+        </button>
+        <button type="button" class="blog-filter-btn" data-filter="announcement">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          Announcement
+        </button>
+        <button type="button" class="blog-filter-btn" data-filter="blog">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          Blog
+        </button>
+        <button type="button" class="blog-filter-btn" data-filter="guide">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+          </svg>
+          Guide
+        </button>
+      </div>
+      <div class="blog-sort">
+        <label class="blog-sort-label" for="blog-sort">Sort:</label>
+        <select id="blog-sort" class="blog-sort-select">
+          <option value="date-desc">Newest First</option>
+          <option value="date-asc">Oldest First</option>
+          <option value="title-asc">Title A-Z</option>
+          <option value="title-desc">Title Z-A</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="blog-grid posts" id="blog-grid">
+      {{{POSTS}}}
+    </div>
+  </main>
+
+  <script src="{{JS_BASE_PATH}}/blog-list.js" type="module"></script>
+
+  {{{FOOTER}}}
+
+  {{{SCRIPTS}}}
+</body>
+</html>

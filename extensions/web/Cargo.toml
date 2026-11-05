@@ -1,0 +1,51 @@
+[package]
+name = "systemprompt-web-extension"
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Web extension for the systemprompt.io template: content, navigation, and template rendering for the self-hosted AI governance binary."
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+# extension_migrations!() expands to ::systemprompt_extension paths; machete
+# cannot see macro-expansion usage.
+[package.metadata.cargo-machete]
+ignored = ["systemprompt-extension", "inventory"]
+
+[lints]
+workspace = true
+
+[dependencies]
+# Core facade - provides all systemprompt types via unified API.
+# Audit: uses ai, database, extension, loader, models, traits — requires `full`
+# (ai + loader are gated by the `full` feature).
+systemprompt = { workspace = true, features = ["full"] }
+# Link the Core extensions declared by `WebExtension::dependencies()` so their
+# inventory registrations and migrations are present in the final binary.
+systemprompt-security = { workspace = true }
+systemprompt-users = { workspace = true }
+systemprompt-content = { workspace = true }
+systemprompt-marketplace = { workspace = true }
+
+# Local sub-crates
+systemprompt-web-shared = { workspace = true }
+systemprompt-web-admin = { workspace = true }
+systemprompt-web-content = { workspace = true }
+systemprompt-web-site = { workspace = true }
+systemprompt-web-jobs = { workspace = true }
+
+# Extension framework — direct dep so the `extension_migrations!()` macro
+# expansion (`::systemprompt_extension::Migration`) resolves.
+systemprompt-extension = { workspace = true }
+inventory = { workspace = true }
+
+# Web framework
+axum = { workspace = true }
+
+# Utilities
+tracing = { workspace = true }
+
+[build-dependencies]
+systemprompt-extension = { workspace = true }

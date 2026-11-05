@@ -1,0 +1,20 @@
+# Assets exempt from scripts/check-asset-reachability.py, one repo-relative path per line.
+
+# Embedded into MCP report HTML at compile time.
+storage/files/js/admin-report-bridge.js
+storage/files/js/admin-report-shell.js
+
+# Registered and published (extensions/web/admin/src/assets.rs,
+# extensions/web/site/src/assets/{css,js_services}.rs) but referenced by no
+# template. Each is wired to its page (passkey registration, Odoo sign-in,
+# report print, the homepage showreel) or deleted together with its
+# registration. An entry here is a debt, not a verdict: remove it the moment
+# the asset is referenced.
+storage/files/css/blog-social-bar.css
+storage/files/css/homepage-showreel.css
+storage/files/js/motion-flag.js
+storage/files/js/pages/admin-report-print.js
+storage/files/js/pages/profile-odoo.js
+storage/files/js/services/odoo-login.js
+storage/files/js/services/webauthn-register.js
+storage/files/images/blog/placeholder.svg

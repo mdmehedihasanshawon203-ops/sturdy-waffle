@@ -1,0 +1,21 @@
+# `tool_policy` is required on every managed server: `allow` (no per-call
+# prompt in Claude Code / Claude Desktop), `prompt` or `deny`. A server without
+# it is withheld from the bridge manifest and fails boot validation.
+# See docs/CONFIGURED-CONNECTORS.md.
+mcp_servers:
+  systemprompt:
+    type: internal
+    binary: systemprompt-mcp-agent
+    package: systemprompt
+    port: 5010
+    enabled: true
+    tool_policy: allow
+    display_in_web: true
+    removable: false
+    description: systemprompt.io MCP Server - Execute CLI commands (admin only)
+    oauth:
+      required: true
+      scopes:
+      - admin
+      audience: mcp
+      client_id: null

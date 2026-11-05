@@ -1,0 +1,11 @@
+@layer components {
+.sp-p-profile__more summary {
+    cursor: pointer;
+    color: var(--sp-text-secondary);
+    font-size: var(--sp-text-sm);
+    font-weight: 600;
+}
+.sp-p-profile__more { margin-block: var(--sp-space-6) 0; }
+.sp-p-profile__more[open] summary { margin-bottom: var(--sp-space-4); }
+.sp-p-profile__more section + section { margin-top: var(--sp-space-5); }
+}
