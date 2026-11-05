@@ -1,0 +1,171 @@
+#!/usr/bin/env bash
+# Sync every version pin in the repo to a single release version.
+#
+#   scripts/sync-release-version.sh 0.21.0          # apply
+#   scripts/sync-release-version.sh 0.21.0 --check  # verify only (CI guard)
+#
+# The template's own version and the core release it depends on are usually the
+# same number, and CORE_VERSION defaults to the version given. They diverge on a
+# template-only patch release — 0.37.1 shipping against an unchanged core
+# 0.37.0 — where pinning the core crates to the template's version would name a
+# release that was never published:
+#
+#   CORE_VERSION=0.37.0 scripts/sync-release-version.sh 0.37.1
+#
+# In --check mode CORE_VERSION defaults instead to the pin already in the root
+# Cargo.toml, so the guard asserts what it is actually there to assert: that
+# every core pin agrees with every other, and that the product version is the
+# one being released.
+#
+# Covered pins:
+#   Cargo.toml            workspace version + systemprompt/-security core pins
+#   extensions/web/Cargo.toml  systemprompt-extension pin
+#   tests/Cargo.toml      systemprompt/-security pins (separate workspace)
+#   helm/gateway/Chart.yaml  appVersion + artifacthub images annotation
+#                            (chart `version:` is bumped separately on apply)
+#   deploy/casaos/docker-compose.yml                exact image tag
+#   deploy/digitalocean/files/opt/systemprompt/docker-compose.yml  exact image tag
+#   deploy/digitalocean/marketplace-image.pkr.hcl   image_version default
+#
+# macOS + Linux compatible (no GNU-only sed flags).
+set -eu
+
+VERSION="${1:?usage: sync-release-version.sh <version> [--check]}"
+MODE="${2:-apply}"
+cd "$(dirname "$0")/.."
+
+case "$VERSION" in
+  *[!0-9.]*|*..*|.*|*.) echo "ERROR: '$VERSION' is not a plain semver (X.Y.Z)"; exit 1 ;;
+esac
+IFS=. read -r MAJ MIN PATCH <<EOV
+$VERSION
+EOV
+: "${PATCH:?ERROR: version must have three components}"
+
+IMAGE="ghcr.io/systempromptio/systemprompt-template"
+fail=0
+
+if [ "$MODE" = "--check" ]; then
+    CORE_VERSION="${CORE_VERSION:-$(sed -n 's|^systemprompt = { version = "\([0-9.]*\)".*|\1|p' Cargo.toml | head -1)}"
+    [ -n "$CORE_VERSION" ] || { echo "ERROR: no systemprompt core pin found in Cargo.toml"; exit 1; }
+else
+    CORE_VERSION="${CORE_VERSION:-$VERSION}"
+fi
+case "$CORE_VERSION" in
+  *[!0-9.]*|*..*|.*|*.) echo "ERROR: CORE_VERSION '$CORE_VERSION' is not a plain semver (X.Y.Z)"; exit 1 ;;
+esac
+
+# file, description, grep pattern that must match post-apply
+check_or_apply() { # $1=file $2=sed-expr $3=expect-regex $4=label
+    local file="$1" sedexpr="$2" expect="$3" label="$4"
+    if [ "$MODE" = "--check" ]; then
+        if ! grep -Eq "$expect" "$file"; then
+            echo "DRIFT: $label in $file (expected /$expect/)"
+            fail=1
+        fi
+    else
+        sed -i.bak -e "$sedexpr" "$file" && rm -f "$file.bak"
+        grep -Eq "$expect" "$file" || { echo "ERROR: failed to set $label in $file"; exit 1; }
+    fi
+}
+
+# Cargo.toml — workspace version (first `version =` in [workspace.package]).
+check_or_apply Cargo.toml \
+    "s|^version = \"[0-9.]*\"|version = \"$VERSION\"|" \
+    "^version = \"$VERSION\"" \
+    "workspace version"
+
+# Cargo.toml — core crate pins.
+check_or_apply Cargo.toml \
+    "s|^systemprompt = { version = \"[0-9.]*\"|systemprompt = { version = \"$CORE_VERSION\"|" \
+    "^systemprompt = \\{ version = \"$CORE_VERSION\"" \
+    "systemprompt core pin"
+check_or_apply Cargo.toml \
+    "s|^systemprompt-security = { version = \"[0-9.]*\"|systemprompt-security = { version = \"$CORE_VERSION\"|" \
+    "^systemprompt-security = \\{ version = \"$CORE_VERSION\"" \
+    "systemprompt-security core pin"
+
+# extensions/web declares its own core pin rather than inheriting one.
+check_or_apply extensions/web/Cargo.toml \
+    "s|^systemprompt-extension = \"[0-9.]*\"|systemprompt-extension = \"$CORE_VERSION\"|" \
+    "^systemprompt-extension = \"$CORE_VERSION\"" \
+    "systemprompt-extension pin"
+
+# tests/ is a separate workspace and does not inherit the root pins.
+check_or_apply tests/Cargo.toml \
+    "s|^systemprompt = { version = \"[0-9.]*\"|systemprompt = { version = \"$CORE_VERSION\"|" \
+    "^systemprompt = \\{ version = \"$CORE_VERSION\"" \
+    "test workspace systemprompt pin"
+check_or_apply tests/Cargo.toml \
+    "s|^systemprompt-security = { version = \"[0-9.]*\"|systemprompt-security = { version = \"$CORE_VERSION\"|" \
+    "^systemprompt-security = \\{ version = \"$CORE_VERSION\"" \
+    "test workspace systemprompt-security pin"
+
+# Helm chart — appVersion + images annotation.
+check_or_apply helm/gateway/Chart.yaml \
+    "s|^appVersion: \"[0-9.]*\"|appVersion: \"$VERSION\"|" \
+    "^appVersion: \"$VERSION\"" \
+    "chart appVersion"
+check_or_apply helm/gateway/Chart.yaml \
+    "s|image: $IMAGE:[0-9.]*|image: $IMAGE:$VERSION|" \
+    "image: $IMAGE:$VERSION" \
+    "artifacthub images annotation"
+
+# Exact-pin deploy files.
+check_or_apply deploy/casaos/docker-compose.yml \
+    "s|image: $IMAGE:[0-9.]*|image: $IMAGE:$VERSION|" \
+    "image: $IMAGE:$VERSION" \
+    "CasaOS image pin"
+check_or_apply deploy/casaos/docker-compose.yml \
+    "s|^  version: \"[0-9.]*\"|  version: \"$VERSION\"|" \
+    "^  version: \"$VERSION\"" \
+    "CasaOS x-casaos version"
+check_or_apply deploy/digitalocean/files/opt/systemprompt/docker-compose.yml \
+    "s|image: $IMAGE:[0-9.]*|image: $IMAGE:$VERSION|" \
+    "image: $IMAGE:$VERSION" \
+    "DigitalOcean image pin"
+check_or_apply deploy/digitalocean/marketplace-image.pkr.hcl \
+    "s|default = \"[0-9.]*\"|default = \"$VERSION\"|" \
+    "default = \"$VERSION\"" \
+    "Packer image_version default"
+
+if [ "$MODE" = "--check" ]; then
+    [ "$fail" -eq 0 ] && echo "version sync OK: everything pinned to $VERSION" || exit 1
+else
+    # Chart version: bumped once per release (apply mode only, idempotent via
+    # marker check — skip if the changelog already mentions this version). The
+    # chart tracks the shape of the release it carries: a patch release of the
+    # gateway bumps the chart's patch, anything else its minor. Bumping the
+    # minor for a patch would claim a chart change that did not happen.
+    if ! grep -q "appVersion to $VERSION" helm/gateway/Chart.yaml; then
+        chart_ver=$(sed -n 's/^version: \([0-9.]*\)$/\1/p' helm/gateway/Chart.yaml)
+        IFS=. read -r cmaj cmin cpatch <<EOV
+$chart_ver
+EOV
+        if [ "$PATCH" = "0" ]; then
+            new_chart="$cmaj.$((cmin + 1)).0"
+        else
+            new_chart="$cmaj.$cmin.$((cpatch + 1))"
+        fi
+        sed -i.bak "s|^version: $chart_ver\$|version: $new_chart|" helm/gateway/Chart.yaml && rm -f helm/gateway/Chart.yaml.bak
+        # Why: sed's `a\` continuation drops the trailing newline under BSD sed,
+        # which silently welded the 0.34.0 entry onto the next list item and left
+        # invalid YAML in the published annotation.
+        VERSION="$VERSION" python3 - helm/gateway/Chart.yaml <<'PYEOF'
+import os, sys
+path = sys.argv[1]
+marker = "  artifacthub.io/changes: |\n"
+entry = (
+    "    - kind: changed\n"
+    "      description: Bumped appVersion to %s (core + gateway version alignment).\n"
+    % os.environ["VERSION"]
+)
+text = open(path).read()
+if text.count(marker) != 1:
+    sys.exit("Chart.yaml: expected exactly one artifacthub.io/changes block")
+open(path, "w").write(text.replace(marker, marker + entry, 1))
+PYEOF
+        echo "chart version: $chart_ver -> $new_chart"
+    fi
+    echo "version sync applied: $VERSION"
+fi

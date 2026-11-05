@@ -1,0 +1,78 @@
+[package]
+name = "systemprompt-web-admin"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Admin dashboard extension for the systemprompt.io template: governed operations UI over agents, MCP servers, users, and analytics."
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[package.metadata.cargo-machete]
+# `inventory` is reached only through the register_* macros, which expand to
+# `inventory::submit!` — machete cannot see through the expansion.
+ignored = ["inventory"]
+
+[dependencies]
+semver = "1"
+jsonwebtoken = { version = "10", features = ["rust_crypto"] }
+url = { workspace = true }
+# Foundation
+systemprompt-web-shared = { workspace = true }
+# Audit: uses ai, identifiers, models, oauth, security — requires `full`.
+systemprompt = { workspace = true, features = ["full"] }
+systemprompt-security = { workspace = true }
+
+# Database
+sqlx = { workspace = true }
+
+# Web framework
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+reqwest = { version = "0.13", default-features = false, features = ["json"] }
+
+# Error handling
+thiserror = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+# Crypto & encoding
+sha2 = { workspace = true }
+chacha20poly1305 = { workspace = true }
+hex = { workspace = true }
+base64 = { workspace = true }
+rand = { workspace = true }
+
+# Templating
+handlebars = { workspace = true }
+
+# Archive
+tempfile = { workspace = true }
+
+# HTTP client
+
+# Utilities
+urlencoding = { workspace = true }
+inventory = { workspace = true }
+async-trait = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+tempfile = { workspace = true }
+tower = { workspace = true, features = ["util"] }
+
+[lints]
+workspace = true

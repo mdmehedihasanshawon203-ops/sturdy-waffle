@@ -1,0 +1,101 @@
+# systemprompt — horizontally scaled, stateless.
+#
+# One Deployment, one kind of pod. Each pod runs the whole product: the HTTP API,
+# the MCP servers, the marketplace and the scheduler, all in one process. Pods are
+# stateless and interchangeable, so `replicas` is free to tune and an HPA is safe
+# to attach.
+#
+# Scheduled jobs do not need a dedicated pod. Every pod runs the scheduler and
+# claims each job with a Postgres advisory lock before dispatch
+# (`scheduler.distributed_lock`, on by default), so a job executes exactly once
+# across the whole Deployment and scheduled work survives losing any pod.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: systemprompt
+  labels:
+    app.kubernetes.io/name: systemprompt
+    app.kubernetes.io/component: app
+    app.kubernetes.io/part-of: scaled-stack
+spec:
+  # PLACEHOLDER replica count — safe to scale; pods are stateless.
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: systemprompt
+      app.kubernetes.io/component: app
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: systemprompt
+        app.kubernetes.io/component: app
+        app.kubernetes.io/part-of: scaled-stack
+    spec:
+      containers:
+        - name: systemprompt
+          # Replace with your published image (or build & push from Dockerfile).
+          image: ghcr.io/systempromptio/systemprompt-template:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: SYSTEMPROMPT_PROFILE_DIR
+              value: /app/.systemprompt/profiles/docker
+            - name: PG_HOST
+              value: postgres-primary
+          volumeMounts:
+            - name: profile
+              mountPath: /app/.systemprompt/profiles/docker
+              readOnly: true
+          startupProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 120
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            initialDelaySeconds: 40
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "768Mi"
+      securityContext:
+        fsGroup: 1000
+      volumes:
+        - name: profile
+          projected:
+            defaultMode: 0440
+            sources:
+              - configMap:
+                  name: systemprompt-profiles
+                  items:
+                    - key: profile-scaled.yaml
+                      path: profile.yaml
+              - secret:
+                  name: systemprompt-profile-secrets
+                  items:
+                    - key: secrets.json
+                      path: secrets.json

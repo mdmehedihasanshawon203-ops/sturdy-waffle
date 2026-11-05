@@ -1,0 +1,164 @@
+# Scheduler Configuration
+# Background jobs and scheduled tasks.
+#
+# Every job declares an explicit `owner:` — a real users.name that authorizes
+# this job's actions. The configured owner becomes JobContext.actor for every
+# `execute()` call and is the principal recorded in audit rows.
+#
+# No "system" user. No magic strings. `admin` is the bootstrap admin user
+# created at install time (`just setup-local`). Deployments that want a
+# different authorizer should change `owner:` to a different admin's username.
+
+scheduler:
+  enabled: true
+  jobs:
+    - name: usage_anomaly
+      extension: web
+      owner: admin
+      enabled: true
+
+    - name: usage_daily_rollup
+      extension: web
+      owner: admin
+      enabled: true
+
+    - name: scope_defaults_recompute
+      extension: web
+      owner: admin
+      enabled: true
+
+    # Core jobs (defined in systemprompt-core)
+    - name: cleanup_anonymous_users
+      extension: core
+      owner: admin
+      schedule: "0 0 3 * * *"
+      enabled: true
+
+    - name: cleanup_empty_contexts
+      extension: core
+      owner: admin
+      schedule: "0 0 * * * *"
+      enabled: true
+
+    - name: cleanup_inactive_sessions
+      extension: core
+      owner: admin
+      schedule: "0 0 * * * *"
+      enabled: true
+
+    - name: database_cleanup
+      extension: core
+      owner: admin
+      schedule: "0 0 4 * * *"
+      enabled: true
+
+    # Web extension jobs (publishing pipeline)
+    - name: publish_pipeline
+      extension: web
+      owner: admin
+      schedule: "0 */15 * * * *"
+      enabled: true
+
+    # Standalone core jobs, running on each job's built-in default schedule
+    # (no `schedule:` override). Security jobs run in observe-and-log mode
+    # because `enforce:` defaults to false.
+    - name: no_js_cleanup
+      extension: core
+      owner: admin
+      enabled: true
+
+    - name: ghost_session_cleanup
+      extension: core
+      owner: admin
+      enabled: true
+
+    - name: mcp_session_cleanup
+      extension: core
+      owner: admin
+      enabled: true
+
+    - name: file_ingestion
+      extension: core
+      owner: admin
+      enabled: true
+
+    - name: behavioral_analysis
+      extension: core
+      owner: admin
+      enabled: true
+
+    - name: malicious_ip_blacklist
+      extension: core
+      owner: admin
+      enabled: true
+
+    # Standalone web extension jobs
+    - name: content_analytics_aggregation
+      extension: web
+      owner: admin
+      enabled: true
+
+    - name: secret_migration
+      extension: web
+      owner: admin
+      enabled: true
+
+    # publish_pipeline sub-steps. The composite above runs each of these every
+    # 15 minutes in dependency order; scheduling them independently would
+    # double-run them, so they are disabled here (an explicit entry also
+    # records the decision and silences the boot warning).
+    - name: blog_content_ingestion
+      extension: web
+      owner: admin
+      enabled: false
+
+    - name: bundle_admin_css
+      extension: web
+      owner: admin
+      enabled: false
+
+    - name: copy_extension_assets
+      extension: web
+      owner: admin
+      enabled: false
+
+    - name: content_prerender
+      extension: core
+      owner: admin
+      enabled: false
+
+    - name: page_prerender
+      extension: core
+      owner: admin
+      enabled: false
+
+    - name: sitemap_generation
+      extension: web
+      owner: admin
+      enabled: false
+
+    - name: llms_txt_generation
+      extension: web
+      owner: admin
+      enabled: false
+
+    - name: robots_txt_generation
+      extension: web
+      owner: admin
+      enabled: false
+
+  # Run once, serially, at startup before the cron loop begins.
+  #
+  # governance_bootstrap is boot-only: it has no `jobs` entry (so it is never
+  # cron-scheduled) and declares an empty schedule. Its owner defaults to the
+  # system admin. It materialises the profile's gateway-route entities and
+  # projects services/access-control + gateway-policy YAML into the authz tables
+  # so authorization is correct at app start.
+  bootstrap_jobs:
+    - governance_bootstrap
+    - database_cleanup
+    - cleanup_inactive_sessions
+    # Publish web assets before the cron loop: web/dist is generated, not
+    # shipped in the image, so without this the site 404s until the first
+    # 15-minute publish_pipeline tick.
+    - publish_pipeline

@@ -1,0 +1,78 @@
+//! HTTP handlers for the admin plane.
+//!
+//! SSR page handlers live in [`ssr`]; everything else here is JSON API or
+//! webhook intake. Handlers own status mapping and call repositories for data.
+
+pub(crate) mod access_control;
+pub(crate) mod access_tokens;
+pub(crate) mod demo_register;
+pub(crate) mod departments;
+pub(crate) mod entity_access;
+pub(crate) mod gateway;
+pub(crate) mod gateway_access;
+pub(crate) mod gateway_catalog;
+pub(crate) mod hooks_track;
+mod jobs;
+pub(crate) mod magic_link;
+mod plugins;
+mod plugins_env;
+pub(crate) mod public_register;
+pub(crate) mod resources;
+pub(crate) mod responses;
+pub(crate) mod secrets;
+pub(crate) mod share;
+pub(crate) mod shared;
+pub(crate) mod slack_identity;
+pub(crate) mod ssr;
+mod users;
+pub(crate) mod webhook;
+
+pub(crate) mod approvals;
+
+pub(crate) mod catalog;
+
+pub(crate) mod devices;
+
+pub(crate) mod groups;
+
+pub(crate) mod projects;
+
+pub(crate) mod roles;
+
+pub(crate) mod salesforce_auth;
+
+pub(crate) mod salesforce_identity;
+
+pub(crate) mod scope_defaults;
+
+pub(crate) mod self_service;
+
+pub(crate) mod connector_auth;
+
+pub(crate) mod bridge_whoami;
+
+pub(crate) use gateway::{
+    create_gateway_route_handler, delete_gateway_route_handler, get_gateway_handler,
+    reorder_gateway_routes_handler, update_gateway_route_handler, update_gateway_settings_handler,
+};
+pub(crate) use jobs::list_jobs_handler;
+pub(crate) use plugins::list_plugins_handler;
+pub(crate) use plugins_env::list_plugin_env_handler;
+pub use plugins_env::resolve_principal;
+pub(crate) use resources::{get_agent_handler, list_agents_handler};
+pub(crate) use users::{
+    create_user_handler, dashboard_handler, delete_user_handler, extract_token_from_headers,
+    extract_user_from_cookie, list_events_handler, list_users_handler, update_user_handler,
+    user_detail_handler, user_usage_handler,
+};
+pub(crate) use webhook::{
+    govern_authz, govern_tool_use, track_statusline_event, track_transcript_event,
+};
+
+pub(crate) mod dev_login;
+pub(crate) mod dev_login_session;
+
+mod user_sessions;
+pub(crate) use user_sessions::{
+    list_user_sessions_handler, revoke_all_user_sessions_handler, revoke_user_session_handler,
+};

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {{{HEAD_ASSETS}}}
+    <title>{{site.branding.title}}</title>
+    <meta name="description" content="{{site.branding.description}}">
+    <link rel="icon" type="image/x-icon" href="{{FAVICON_PATH}}">
+    <link rel="canonical" href="{{ORG_URL}}">
+    <meta property="og:title" content="{{site.branding.title}}">
+    <meta property="og:description" content="{{site.branding.description}}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ORG_URL}}">
+    <meta property="og:image" content="{{site.branding.image}}">
+    <meta property="og:site_name" content="{{site.branding.name}}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="{{TWITTER_HANDLE}}">
+    <meta name="twitter:title" content="{{site.branding.title}}">
+    <meta name="twitter:description" content="{{site.branding.description}}">
+    <meta name="twitter:image" content="{{site.branding.image}}">
+    <meta name="theme-color" content="{{site.branding.themeColor}}">
+    <link rel="stylesheet" href="{{CSS_BASE_PATH}}/homepage-hero.css">
+    <link rel="stylesheet" href="{{CSS_BASE_PATH}}/homepage-sections-titles.css">
+    <link rel="stylesheet" href="{{CSS_BASE_PATH}}/homepage-demos.css">
+    <link rel="stylesheet" href="{{CSS_BASE_PATH}}/homepage-demos-quickstart.css">
+    <link rel="stylesheet" href="{{CSS_BASE_PATH}}/homepage-demos-nav.css">
+    <link rel="stylesheet" href="{{CSS_BASE_PATH}}/homepage-demos-categories.css">
+    <link rel="stylesheet" href="{{CSS_BASE_PATH}}/homepage-demos-story.css">
+    <link rel="stylesheet" href="{{CSS_BASE_PATH}}/homepage-demos-story-commands.css">
+</head>
+<body>
+    {{{HEADER}}}
+
+    <main>
+
+        <section class="hero">
+            <div class="hero-glow"></div>
+            <div class="container">
+                <div class="hero-content">
+                    <p class="hero-eyebrow">{{#if site.homepage.hero.eyebrow}}{{site.homepage.hero.eyebrow}}{{else}}Enterprise Demo{{/if}}</p>
+                    <h1 class="hero-title">{{site.homepage.hero.title}} <span class="highlight">{{site.homepage.hero.title_highlight}}</span></h1>
+                    <p class="hero-subtitle">{{site.homepage.hero.subtitle}}</p>
+                    <div class="hero-ctas">
+                        {{#if site.homepage.hero.cta_url}}
+                        <a href="{{site.homepage.hero.cta_url}}" class="hero-cta hero-cta-primary">{{site.homepage.hero.cta}}</a>
+                        {{/if}}
+                        {{#if site.homepage.hero.cta_secondary_url}}
+                        <a href="{{site.homepage.hero.cta_secondary_url}}" class="hero-cta hero-cta-secondary">{{site.homepage.hero.cta_secondary}}</a>
+                        {{/if}}
+                    </div>
+                    <nav class="hero-nav-chips" aria-label="Jump to homepage section">
+                        <a href="#quick-start" class="hero-nav-chip">Quick Start</a>
+                        <a href="#usage" class="hero-nav-chip">Usage</a>
+                        <a href="#demos" class="hero-nav-chip">Demos</a>
+                    </nav>
+                </div>
+            </div>
+        </section>
+
+        {{#if site.homepage.demos}}
+        <section id="quick-start" class="demos-quick-start">
+            <div class="container">
+                <header class="section-header">
+                    <h2 class="section-title">Quick Start</h2>
+                    <p class="section-subtitle">Four commands from fresh clone to running demos.</p>
+                </header>
+                <ol class="quick-start-list">
+                    {{#each site.homepage.demos.quick_start}}
+                    <li class="quick-start-step">
+                        <div class="quick-start-number">{{@index}}</div>
+                        <div class="quick-start-body">
+                            <h3 class="quick-start-label">{{this.label}}</h3>
+                            {{#if this.description}}<p class="quick-start-desc">{{this.description}}</p>{{/if}}
+                            <div class="command-row">
+                                <pre class="command-block"><code>{{this.command}}</code></pre>
+                                <button type="button" class="copy-btn" data-code="{{this.command}}" aria-label="Copy command">Copy</button>
+                            </div>
+                        </div>
+                    </li>
+                    {{/each}}
+                </ol>
+            </div>
+        </section>
+
+        <section id="demos" class="demos-catalogue">
+            <div class="container">
+                <header class="section-header">
+                    <h2 class="section-title">{{site.homepage.demos.title}}</h2>
+                    <p class="section-subtitle">{{site.homepage.demos.subtitle}}</p>
+                </header>
+
+                <nav class="demo-jump-nav" aria-label="Jump to demo section">
+                    <span class="demo-jump-nav-label">Jump to</span>
+                    <ul class="demo-jump-nav-list">
+                        {{#each site.homepage.demos.pillars}}
+                        <li><a href="#pillar-{{this.id}}" class="demo-jump-nav-link demo-jump-nav-pillar">{{this.title}}</a></li>
+                        {{/each}}
+                    </ul>
+                </nav>
+
+                {{#each site.homepage.demos.pillars}}
+                <div class="demo-pillar" id="pillar-{{this.id}}">
+                    <header class="demo-pillar-header">
+                        <h3 class="demo-pillar-title">{{this.title}}</h3>
+                        <p class="demo-pillar-subtitle">{{this.subtitle}}</p>
+                        {{#if this.feature_url}}
+                        <a href="{{this.feature_url}}" class="demo-pillar-link" target="_blank" rel="noopener">Learn more on systemprompt.io &rarr;</a>
+                        {{/if}}
+                    </header>
+
+                    {{#each this.categories}}
+                    <article class="demo-category" id="demo-{{this.id}}">
+                        <header class="demo-category-header">
+                            <div class="demo-category-heading">
+                                <h4 class="demo-category-title">{{this.title}}</h4>
+                                <p class="demo-category-tagline">{{this.tagline}}</p>
+                            </div>
+                            <div class="demo-category-meta">
+                                <span class="demo-category-cost">{{this.cost}}</span>
+                                {{#if this.feature_url}}
+                                <a href="{{this.feature_url}}" class="demo-category-feature-link" target="_blank" rel="noopener">Feature page &rarr;</a>
+                                {{/if}}
+                            </div>
+                        </header>
+                        <p class="demo-category-story">{{this.story}}</p>
+                        <ol class="demo-story-timeline">
+                            {{#each this.steps}}
+                            <li class="demo-step">
+                                <div class="demo-step-body">
+                                    <h5 class="demo-step-label">{{this.label}}</h5>
+                                    <p class="demo-step-narrative">{{this.narrative}}</p>
+                                    <p class="demo-step-outcome"><span class="demo-step-outcome-label">What you see</span> {{this.outcome}}</p>
+                                    <details class="demo-step-commands">
+                                        <summary class="demo-step-commands-summary">Run it — {{this.name}}</summary>
+                                        <div class="demo-step-commands-body">
+                                            <div class="demo-step-path">
+                                                <code>./{{this.path}}</code>
+                                                <button type="button" class="copy-btn copy-btn-small" data-code="./{{this.path}}" aria-label="Copy script path">Copy path</button>
+                                            </div>
+                                            {{#if this.commands}}
+                                            <p class="demo-step-commands-hint">Or run the individual commands below:</p>
+                                            {{#each this.commands}}
+                                            <div class="command-row">
+                                                <pre class="command-block"><code>{{this}}</code></pre>
+                                                <button type="button" class="copy-btn copy-btn-small" data-code="{{this}}" aria-label="Copy command">Copy</button>
+                                            </div>
+                                            {{/each}}
+                                            {{/if}}
+                                        </div>
+                                    </details>
+                                </div>
+                            </li>
+                            {{/each}}
+                        </ol>
+                    </article>
+                    {{/each}}
+                </div>
+                {{/each}}
+            </div>
+        </section>
+        {{/if}}
+
+        <section id="usage" class="demos-quick-start homepage-usage">
+            <div class="container">
+                <header class="section-header">
+                    <h2 class="section-title">Run the Pi demo: one agent, every provider, fully governed</h2>
+                    <p class="section-subtitle">Point the <a href="https://pi.dev">Pi coding agent</a> at the gateway and drive Claude, GPT, Gemini, and Cerebras models through one governed endpoint &mdash; then flip a model off for a user and watch the very next request get denied.</p>
+                </header>
+                <ol class="quick-start-list">
+                    <li class="quick-start-step">
+                        <div class="quick-start-number">1</div>
+                        <div class="quick-start-body">
+                            <h3 class="quick-start-label">Install and wire Pi</h3>
+                            <p class="quick-start-desc">One script installs Pi, adds the gateway as a provider in <code>~/.pi/agent/models.json</code>, applies the branded theme, and smoke-tests the governed endpoint.</p>
+                            <div class="command-row">
+                                <pre class="command-block"><code>examples/pi/setup.sh &amp;&amp; examples/pi/routes.sh</code></pre>
+                                <button type="button" class="copy-btn" data-code="examples/pi/setup.sh &amp;&amp; examples/pi/routes.sh" aria-label="Copy command">Copy</button>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="quick-start-step">
+                        <div class="quick-start-number">2</div>
+                        <div class="quick-start-body">
+                            <h3 class="quick-start-label">Register a demo user</h3>
+                            <p class="quick-start-desc">Creates a fresh non-admin user, issues them a gateway API key from the admin API, and re-points Pi at that identity. Every request Pi makes is now attributed, audited, and priced against that user.</p>
+                            <div class="command-row">
+                                <pre class="command-block"><code>examples/pi/new-user.sh</code></pre>
+                                <button type="button" class="copy-btn" data-code="examples/pi/new-user.sh" aria-label="Copy command">Copy</button>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="quick-start-step">
+                        <div class="quick-start-number">3</div>
+                        <div class="quick-start-body">
+                            <h3 class="quick-start-label">Drive models, then govern them live</h3>
+                            <p class="quick-start-desc">Run <code>pi</code> and hop between Claude, GPT, Gemini, and Cerebras with <code>/model</code>. Then disable a model for the user on <strong>Model Selection</strong> &mdash; their next call to it is denied with a 403, no restart, no new token. Re-enable and it works again. The full script lives in <code>examples/pi/WALKTHROUGH.md</code>.</p>
+                            <div class="command-row">
+                                <pre class="command-block"><code>pi -p --provider systemprompt --model gpt-oss-120b "hello"</code></pre>
+                                <button type="button" class="copy-btn" data-code="pi -p --provider systemprompt --model gpt-oss-120b &quot;hello&quot;" aria-label="Copy command">Copy</button>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="quick-start-step">
+                        <div class="quick-start-number">4</div>
+                        <div class="quick-start-body">
+                            <h3 class="quick-start-label">Inspect the evidence</h3>
+                            <p class="quick-start-desc">Everything the agent did is in the governance spine: <strong>Model Selection</strong> shows the per-user toggles beside that user&rsquo;s requests, tokens, and cost; <strong>Requests</strong> holds the full audit trail &mdash; identity, model, provider, policy decisions, denials, latency, and spend for every single call.</p>
+                            <div class="command-row">
+                                <a href="/admin/models" class="hero-cta hero-cta-primary">Model Selection</a>
+                                <a href="/admin/entities/requests" class="hero-cta hero-cta-secondary">Request audit trail</a>
+                            </div>
+                        </div>
+                    </li>
+                </ol>
+            </div>
+        </section>
+
+    </main>
+
+    {{{FOOTER}}}
+    {{{SCRIPTS}}}
+    <template id="mcp-connect-template">
+        <div class="mcp-modal" role="dialog" aria-modal="true" aria-label="MCP connection details">
+            <div class="mcp-modal__backdrop"></div>
+            <div class="mcp-modal__content">
+                <button type="button" class="mcp-modal__close" aria-label="Close">&times;</button>
+                <h3 class="mcp-modal__title"></h3>
+                <p class="mcp-modal__desc">Add this MCP server to your AI coding assistant using HTTP transport.</p>
+                <div class="mcp-modal__url-row">
+                    <code class="mcp-modal__url"></code>
+                    <button type="button" class="mcp-modal__copy">Copy</button>
+                </div>
+                <div class="mcp-modal__instructions">
+                    <h4>Claude Code</h4>
+                    <pre><code data-slot="claude-cmd"></code></pre>
+                    <h4>Cursor / VS Code</h4>
+                    <p>Add to your <code>.cursor/mcp.json</code> or <code>.vscode/mcp.json</code>:</p>
+                    <pre><code data-slot="mcp-json"></code></pre>
+                </div>
+            </div>
+        </div>
+    </template>
+    <script src="{{JS_BASE_PATH}}/homepage.js" type="module"></script>
+</body>
+</html>
